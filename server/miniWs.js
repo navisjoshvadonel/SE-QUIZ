@@ -5,6 +5,26 @@ const crypto = require('crypto');
 
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
+function createWsTextFrame(text) {
+  const payload = Buffer.from(text, 'utf8');
+  const length = payload.length;
+  let header;
+  if (length < 126) {
+    header = Buffer.from([0x81, length]);
+  } else if (length < 65536) {
+    header = Buffer.alloc(4);
+    header[0] = 0x81;
+    header[1] = 126;
+    header.writeUInt16BE(length, 2);
+  } else {
+    header = Buffer.alloc(10);
+    header[0] = 0x81;
+    header[1] = 127;
+    header.writeBigUInt64BE(BigInt(length), 2);
+  }
+  return Buffer.concat([header, payload]);
+}
+
 class WebSocketConnection extends EventEmitter {
   constructor(socket) {
     super();
@@ -28,25 +48,13 @@ class WebSocketConnection extends EventEmitter {
   send(data) {
     if (this.socket.destroyed || !this.socket.writable) return;
     const text = typeof data === 'string' ? data : JSON.stringify(data);
-    const payload = Buffer.from(text, 'utf8');
-    const length = payload.length;
+    const frame = createWsTextFrame(text);
+    this.socket.write(frame);
+  }
 
-    let header;
-    if (length < 126) {
-      header = Buffer.from([0x81, length]);
-    } else if (length < 65536) {
-      header = Buffer.alloc(4);
-      header[0] = 0x81;
-      header[1] = 126;
-      header.writeUInt16BE(length, 2);
-    } else {
-      header = Buffer.alloc(10);
-      header[0] = 0x81;
-      header[1] = 127;
-      header.writeBigUInt64BE(BigInt(length), 2);
-    }
-
-    this.socket.write(Buffer.concat([header, payload]));
+  sendFrame(frameBuffer) {
+    if (this.socket.destroyed || !this.socket.writable) return;
+    this.socket.write(frameBuffer);
   }
 
   close() {
@@ -175,4 +183,4 @@ class WebSocketServer extends EventEmitter {
   }
 }
 
-module.exports = { WebSocketServer, WebSocketConnection };
+module.exports = { WebSocketServer, WebSocketConnection, createWsTextFrame };

@@ -37,7 +37,16 @@
             <span id="nav-player-avatar" style="display: inline-flex; align-items: center;"></span>
             <strong id="nav-player-name">Student</strong>
           </div>
+          <div class="meta-tag meta-score-tag" id="nav-player-score-tag">
+            <span class="score-icon">⚡</span>
+            <strong id="nav-player-score">0 pts</strong>
+          </div>
         </div>
+
+        <button class="host-portal-btn" id="header-host-btn" type="button" onclick="switchToHostLogin()" title="Host / Teacher Login">
+          <span class="host-portal-icon">🔒</span>
+          <span class="host-portal-text">Host Login</span>
+        </button>
 
         <button class="theme-toggle-btn" id="theme-toggle-btn" type="button" onclick="toggleTheme()" title="Switch Light/Dark Mode" aria-label="Toggle Theme">
           <span class="theme-toggle-icon" id="theme-toggle-icon">☀️</span>
@@ -54,32 +63,79 @@
     <!-- Main Desktop Workspace Card -->
     <main class="pc-main-workspace" id="quiz-main-card">
 
-      <!-- SCREEN 1: ENTER PIN -->
+      <!-- SCREEN 1: ENTER PIN / HOST LOGIN -->
       <section id="screen-pin" class="view-screen active">
         <div class="auth-box">
-          <div class="auth-icon-circle">🔑</div>
-          <h2 class="auth-heading">Join Quiz Arena</h2>
-          <p class="auth-subheading">Enter the 6-digit Game PIN displayed on the front screen</p>
-
-          <form id="form-pin" onsubmit="event.preventDefault(); submitPin();">
-            <div class="form-group">
-              <input 
-                type="text" 
-                id="input-pin-val" 
-                class="pc-input-pin" 
-                placeholder="000000" 
-                maxlength="10" 
-                autocomplete="off" 
-                autocapitalize="characters" 
-                required
-                autofocus
-              >
-            </div>
-            <button type="submit" id="btn-pin-submit" class="btn-pc-primary">
-              <span>Continue ➔</span>
+          <!-- Dual Role Switcher Tabs -->
+          <div class="portal-tab-bar">
+            <button type="button" class="portal-tab active" id="tab-student" onclick="switchToStudentJoin()">
+              🎮 Student (Enter PIN)
             </button>
-          </form>
-          <p id="pin-error-msg" class="form-error-msg" style="display: none;"></p>
+            <button type="button" class="portal-tab" id="tab-host" onclick="switchToHostLogin()">
+              🔒 Host Login
+            </button>
+          </div>
+
+          <!-- 1. STUDENT PIN VIEW -->
+          <div id="portal-student-view">
+            <div class="auth-icon-circle">🔑</div>
+            <h2 class="auth-heading">Join Quiz Arena</h2>
+            <p class="auth-subheading">Enter the 6-digit Game PIN displayed on the front screen</p>
+
+            <form id="form-pin" onsubmit="event.preventDefault(); submitPin();">
+              <div class="form-group">
+                <input 
+                  type="text" 
+                  id="input-pin-val" 
+                  class="pc-input-pin" 
+                  placeholder="000000" 
+                  maxlength="10" 
+                  autocomplete="off" 
+                  autocapitalize="characters" 
+                  required
+                  autofocus
+                >
+              </div>
+              <button type="submit" id="btn-pin-submit" class="btn-pc-primary">
+                <span>Continue ➔</span>
+              </button>
+            </form>
+            <p id="pin-error-msg" class="form-error-msg" style="display: none;"></p>
+
+            <div class="host-entry-hint">
+              <span>Teacher / Presenter?</span>
+              <a href="javascript:void(0)" onclick="switchToHostLogin()" class="host-entry-link">Host Login ➔</a>
+            </div>
+          </div>
+
+          <!-- 2. HOST LOGIN PASSWORD VIEW -->
+          <div id="portal-host-view" style="display: none;">
+            <div class="auth-icon-circle" style="background: rgba(99, 102, 241, 0.18); border-color: rgba(99, 102, 241, 0.45);">🔒</div>
+            <h2 class="auth-heading">Host Presentation Login</h2>
+            <p class="auth-subheading">Enter the master host password to open the Quiz Control Arena</p>
+
+            <form id="form-host-login" onsubmit="event.preventDefault(); submitHostLogin();">
+              <div class="form-group">
+                <input 
+                  type="password" 
+                  id="input-host-password" 
+                  class="pc-input-text" 
+                  placeholder="Enter host password" 
+                  autocomplete="current-password" 
+                  required
+                  style="text-align: center; font-size: 1.4rem; letter-spacing: 0.15em; font-family: var(--font-code); font-weight: 800; border-radius: 16px;"
+                >
+              </div>
+              <button type="submit" id="btn-host-login-submit" class="btn-pc-primary" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);">
+                <span>Unlock Host Arena ➔</span>
+              </button>
+              <button type="button" class="btn-pc-secondary" style="width: 100%; margin-top: 0.85rem;" onclick="switchToStudentJoin()">
+                ← Back to Student PIN
+              </button>
+            </form>
+            <p id="host-error-msg" class="form-error-msg" style="display: none;"></p>
+          </div>
+
         </div>
       </section>
 
@@ -89,7 +145,12 @@
           <div class="auth-icon-circle" id="nickname-avatar-preview" onclick="shuffleAvatar()" title="Click to shuffle insignia" style="cursor: pointer; user-select: none; display: inline-flex; align-items: center; justify-content: center; background: transparent; box-shadow: none;"></div>
           <div id="nickname-avatar-role" style="font-size: 0.95rem; font-weight: 800; color: #818CF8; margin-bottom: 0.75rem; letter-spacing: 0.03em;">Terminal Root • Kernel Hacker</div>
           <h2 class="auth-heading">Enter Nickname</h2>
-          <p class="auth-subheading">Tap your insignia above to customize, then choose your name</p>
+          <p class="auth-subheading">Click your insignia above or shuffle below, then choose your nickname</p>
+          <div style="display: flex; justify-content: center; margin-bottom: 0.5rem;">
+            <button type="button" class="btn-avatar-shuffle" onclick="shuffleAvatar()" title="Click to cycle insignia (or press Space)">
+              🎲 Shuffle Avatar
+            </button>
+          </div>
 
           <form id="form-nickname" onsubmit="event.preventDefault(); submitNickname();">
             <div class="form-group">
@@ -137,7 +198,10 @@
       <!-- SCREEN 4: COUNTDOWN -->
       <section id="screen-countdown" class="view-screen">
         <div class="pc-countdown-display">
-          <div class="pc-countdown-num" id="countdown-val">3</div>
+          <div class="pc-welcome-heading" id="countdown-welcome-banner" style="display: none; font-size: 2.2rem; font-weight: 900; color: #818CF8; margin-bottom: 0.75rem; letter-spacing: -0.02em;">
+            Welcome, <span id="countdown-welcome-name">Student</span>!
+          </div>
+          <div class="pc-countdown-num" id="countdown-val">5</div>
           <div class="pc-countdown-unit" id="countdown-unit-pill" style="display: none;">UNIT I – Software Process Models</div>
           <h3 class="pc-countdown-title" id="countdown-sub">Get Ready at your Keyboard!</h3>
           <p class="pc-countdown-qnum" id="countdown-qnum">Question 1 of 50</p>
@@ -151,6 +215,7 @@
             <span class="pc-q-badge" id="q-number-pill">Question 1 of 50</span>
             <span class="pc-unit-badge" id="q-unit-pill" style="display: none;">UNIT I – Software Process Models</span>
             <span class="pc-streak-badge" id="q-streak-pill">🔥 0 streak</span>
+            <span class="pc-score-badge" id="q-score-pill">⚡ 0 pts</span>
           </div>
 
           <!-- Keyboard shortcut hint for PC students -->
@@ -209,6 +274,12 @@
             <div class="pc-locked-tag" id="locked-choice-tag">Option A</div>
           </div>
 
+          <!-- Total Points so far -->
+          <div class="pc-locked-score-banner" id="locked-score-banner">
+            <span class="locked-score-icon">⚡</span>
+            <span>Total Points: <strong id="locked-current-score">0 pts</strong></span>
+          </div>
+
           <h2 class="pc-locked-heading" id="locked-status-heading">Answer Locked In!</h2>
           <p class="pc-locked-sub" id="locked-status-sub">
             Your response is registered with microsecond precision.
@@ -254,14 +325,27 @@
             <h1 class="result-hero-headline" id="result-title">Not quite!</h1>
             <p class="result-hero-sub" id="result-sub-msg">Shake it off — plenty of points ahead!</p>
 
-            <!-- Score Pill -->
-            <div class="result-score-badge">
-              <span class="result-score-val" id="result-score-gain">+0 pts</span>
+            <!-- Dual Score Display: Points Gained + Total Score -->
+            <div class="result-score-container">
+              <div class="result-score-badge" id="result-gain-badge">
+                <span class="result-score-label">ROUND POINTS</span>
+                <span class="result-score-val" id="result-score-gain">+0 pts</span>
+              </div>
+
+              <div class="result-total-score-box" id="result-total-box">
+                <span class="total-score-label">TOTAL SCORE</span>
+                <span class="total-score-val" id="result-total-score">0 pts</span>
+              </div>
             </div>
 
-            <!-- Streak Recovery / Flame Banner -->
-            <div class="result-streak-pill" id="result-streak-text">
-              Streak broken — time to bounce back! 💪
+            <!-- Meta row with Streak + Class Rank -->
+            <div class="result-meta-row">
+              <div class="result-streak-pill" id="result-streak-text">
+                Streak broken — time to bounce back! 💪
+              </div>
+              <div class="result-rank-pill" id="result-rank-pill">
+                🏆 Rank: #1 in class
+              </div>
             </div>
 
             <!-- The Real Solution Banner -->
@@ -286,49 +370,60 @@
         </div>
       </section>
 
-      <!-- SCREEN 8: LEADERBOARD UPDATE -->
+      <!-- SCREEN 8: ROUND STANDING (CLEAN PERSONAL FOCUS - NO LEADERBOARD LIST) -->
       <section id="screen-leaderboard" class="view-screen">
-        <div class="pc-rank-hero-card">
-          <div class="pc-rank-digits" id="lb-player-rank">#1</div>
-          <div class="pc-rank-subtitle">Your Current Position</div>
-          <div class="pc-rank-score-pill" id="lb-player-score">1,240 pts</div>
-          <div class="pc-rank-difference" id="lb-rank-diff">You are in the lead! 👑</div>
-        </div>
+        <div class="player-focus-card">
+          <!-- Look Up Prompt -->
+          <div class="focus-front-banner">
+            <span class="focus-front-icon">🖥️</span>
+            <div class="focus-front-text">
+              <h3>Look up at the Front Screen!</h3>
+              <p>The official Top 10 leaderboard is rearranging on the host display</p>
+            </div>
+          </div>
 
-        <h3 class="pc-section-heading">🏆 Top 10 Standings</h3>
-        <div class="pc-leaderboard-list" id="lb-top10-list">
-          <!-- Top 10 dynamically inserted -->
+          <!-- Personal Standing Badge -->
+          <div class="pc-rank-hero-card">
+            <div class="pc-rank-digits" id="lb-player-rank">#1</div>
+            <div class="pc-rank-subtitle">Your Current Standing</div>
+            <div class="pc-rank-score-pill" id="lb-player-score">1,240 pts</div>
+            <div class="pc-rank-difference" id="lb-rank-diff">You are in the lead! 👑</div>
+          </div>
+
+          <div class="player-waiting-pill">
+            <span class="pulsing-live-dot"></span>
+            <span>Host will launch the next question shortly...</span>
+          </div>
         </div>
       </section>
 
-      <!-- SCREEN 9: GAME OVER FINAL TOP 10 -->
+      <!-- SCREEN 9: GAME OVER FINAL RESULTS -->
       <section id="screen-gameover" class="view-screen">
-        <div style="text-align: center; margin-bottom: 2rem;">
-          <div style="font-size: 4rem;">🏆</div>
-          <h2 class="auth-heading" style="font-size: 2.5rem; color: #4F46E5;">
-            Quiz Complete!
-          </h2>
-          <p class="auth-subheading">
-            Great competition! Check your final ranking and the official Top 10 below.
-          </p>
-        </div>
+        <div class="player-focus-card">
+          <div style="text-align: center; margin-bottom: 1.5rem;">
+            <div style="font-size: 4rem;">🏆</div>
+            <h2 class="auth-heading" style="font-size: 2.4rem; color: #4F46E5;">
+              Quiz Complete!
+            </h2>
+            <p class="auth-subheading">
+              Check the front projector for the Grand Finale Top 10 Podium & Champions!
+            </p>
+          </div>
 
-        <div class="pc-rank-hero-card" style="background: linear-gradient(135deg, #059669 0%, #10B981 100%);">
-          <div class="pc-rank-digits" id="final-player-rank">#3</div>
-          <div class="pc-rank-subtitle">Final Rank</div>
-          <div class="pc-rank-score-pill" id="final-player-score">14,200 pts</div>
-          <div class="pc-rank-difference" id="final-player-accuracy">Accuracy: 88%</div>
-        </div>
+          <div class="pc-rank-hero-card" style="background: linear-gradient(135deg, #059669 0%, #10B981 100%);">
+            <div class="pc-rank-digits" id="final-player-rank">#3</div>
+            <div class="pc-rank-subtitle">Your Final Rank</div>
+            <div class="pc-rank-score-pill" id="final-player-score">14,200 pts</div>
+            <div class="pc-rank-difference" id="final-player-accuracy">Accuracy: 88%</div>
+          </div>
 
-        <h3 class="pc-section-heading">🌟 Official Top 10 Leaderboard</h3>
-        <div class="pc-leaderboard-list" id="final-top10-list" style="max-height: 280px; overflow-y: auto;">
-          <!-- Final top 10 inserted -->
-        </div>
+          <div id="final-top3-champions"></div>
 
-        <div style="display: flex; justify-content: center; margin-top: 1.75rem;">
-          <button type="button" class="btn-pc-primary" style="width: auto; padding: 0.9rem 2.5rem;" onclick="window.location.reload()">
-            🔄 Join Another Session
-          </button>
+          <div style="display: flex; justify-content: center; margin-top: 1.75rem;">
+            <button type="button" class="btn-pc-primary" style="width: auto; padding: 0.9rem 2.5rem;" onclick="window.location.reload()">
+              🔄 Join Another Session
+            </button>
+          </div>
         </div>
       </section>
 
@@ -336,10 +431,10 @@
   </div>
 
   <!-- Audio, Confetti & Interactive Click FX Scripts -->
-  <script src="js/avatars.js"></script>
-  <script src="js/sounds.js"></script>
-  <script src="js/confetti.js"></script>
-  <script src="js/cursorFx.js"></script>
-  <script src="js/player.js"></script>
+  <script src="js/avatars.js?v=3.1"></script>
+  <script src="js/sounds.js?v=3.1"></script>
+  <script src="js/confetti.js?v=3.1"></script>
+  <script src="js/cursorFx.js?v=3.1"></script>
+  <script src="js/player.js?v=3.1"></script>
 </body>
 </html>

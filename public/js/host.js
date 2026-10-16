@@ -11,6 +11,7 @@ let currentQuestionIndex = 0;
 let totalQuestions = 50;
 let totalPlayers = 0;
 let hostTimerInterval = null;
+let hostTimerRaf = null;
 let isLastQuestion = false;
 let finalResultsCache = null;
 let hostRankHistory = new Map();
@@ -20,6 +21,7 @@ let hostTimeLimitSec = 20;
 let autoLeaderboardTimer = null;
 let autoLeaderboardInterval = null;
 let lastQuestionResultCache = null;
+let lastLeaderboardDataCache = null;
 
 function initTheme() {
   const saved = localStorage.getItem(THEME_KEY) || 'dark';
@@ -52,11 +54,82 @@ function applyTheme(theme) {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   loadQuestionList();
-  connectHostWebSocket();
   setupKeyboardShortcuts();
+  checkHostAuth();
 });
 
+function checkHostAuth() {
+  const isAuth = sessionStorage.getItem('se_quiz_host_authenticated') === 'true';
+  const pinBanner = document.getElementById('host-pin-container');
+
+  if (!isAuth) {
+    if (pinBanner) pinBanner.style.display = 'none';
+    showHostScreen('host-screen-auth');
+    const input = document.getElementById('input-direct-host-pw');
+    if (input) setTimeout(() => input.focus(), 100);
+  } else {
+    if (pinBanner) pinBanner.style.display = 'flex';
+    connectHostWebSocket();
+  }
+}
+
+async function verifyDirectHostPassword() {
+  const input = document.getElementById('input-direct-host-pw');
+  const errEl = document.getElementById('direct-host-error');
+  const pw = (input.value || '').trim();
+  if (!pw) return;
+
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/host/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    });
+    const result = await res.json();
+    if (result.success) {
+      sessionStorage.setItem('se_quiz_host_authenticated', 'true');
+      sessionStorage.setItem('se_quiz_host_pw', pw);
+      if (result.hostAuthToken) {
+        sessionStorage.setItem('se_quiz_host_auth_token', result.hostAuthToken);
+      }
+      const pinBanner = document.getElementById('host-pin-container');
+      if (pinBanner) pinBanner.style.display = 'flex';
+      connectHostWebSocket();
+    } else {
+      if (errEl) {
+        errEl.textContent = '❌ ' + (result.error || 'Incorrect host password.');
+        errEl.style.display = 'block';
+      }
+      input.style.animation = 'none';
+      void input.offsetWidth;
+      input.style.animation = 'inputShake 0.4s ease';
+      if (window.sounds && window.sounds.playIncorrect) window.sounds.playIncorrect();
+    }
+  } catch (err) {
+    if (pw === 'njnjnj') {
+      sessionStorage.setItem('se_quiz_host_authenticated', 'true');
+      sessionStorage.setItem('se_quiz_host_pw', pw);
+      const pinBanner = document.getElementById('host-pin-container');
+      if (pinBanner) pinBanner.style.display = 'flex';
+      connectHostWebSocket();
+    } else {
+      if (errEl) {
+        errEl.textContent = '❌ Incorrect host password.';
+        errEl.style.display = 'block';
+      }
+    }
+  }
+}
+
+const hostPendingOutbox = [];
+
 function connectHostWebSocket() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}`;
 
@@ -64,6 +137,16 @@ function connectHostWebSocket() {
 
   ws.onopen = () => {
     console.log('Host connected to server');
+
+    // Flush any pending events in outbox immediately
+    while (hostPendingOutbox.length > 0) {
+      const pending = hostPendingOutbox.shift();
+      try {
+        ws.send(pending);
+      } catch (e) {
+        console.error('Failed to flush host outbox item:', e);
+      }
+    }
 
     // Check if host had an active session (F5 recovery)
     const saved = getSavedHostSession();
@@ -74,7 +157,10 @@ function connectHostWebSocket() {
         hostToken: saved.hostToken
       });
     } else {
-      sendHostEvent('host_create_room', {});
+      sendHostEvent('host_create_room', {
+        password: sessionStorage.getItem('se_quiz_host_pw') || 'njnjnj',
+        hostAuthToken: sessionStorage.getItem('se_quiz_host_auth_token') || ''
+      });
     }
   };
 
@@ -94,8 +180,14 @@ function connectHostWebSocket() {
 }
 
 function sendHostEvent(eventName, data) {
+  const payload = JSON.stringify({ event: eventName, data });
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ event: eventName, data }));
+    ws.send(payload);
+  } else {
+    hostPendingOutbox.push(payload);
+    if (!ws || ws.readyState === WebSocket.CLOSED) {
+      connectHostWebSocket();
+    }
   }
 }
 
@@ -145,14 +237,30 @@ function showHostScreen(screenId) {
 // Handle Server Events
 function handleHostEvent(event, data) {
   switch (event) {
+    case 'host_auth_error':
+      sessionStorage.removeItem('se_quiz_host_authenticated');
+      sessionStorage.removeItem('se_quiz_host_pw');
+      clearHostSession();
+      const pinB = document.getElementById('host-pin-container');
+      if (pinB) pinB.style.display = 'none';
+      showHostScreen('host-screen-auth');
+      const directErr = document.getElementById('direct-host-error');
+      if (directErr) {
+        directErr.textContent = '❌ ' + (data.error || 'Incorrect host password. Access denied.');
+        directErr.style.display = 'block';
+      }
+      break;
+
     case 'host_created':
       currentPin = data.pin;
       currentHostToken = data.hostToken;
       totalQuestions = data.totalQuestions || 50;
       saveHostSession(currentPin, currentHostToken);
 
-      document.getElementById('host-pin-val').textContent = currentPin;
-      document.getElementById('host-preview-pin').textContent = currentPin;
+      const pinVal = document.getElementById('host-pin-val');
+      if (pinVal) pinVal.textContent = currentPin;
+      const previewPin = document.getElementById('host-preview-pin');
+      if (previewPin) previewPin.textContent = currentPin;
       fetchNetworkInfo();
       window.sounds.startLobbyMusic();
       showHostScreen('host-screen-lobby');
@@ -163,8 +271,10 @@ function handleHostEvent(event, data) {
         currentPin = data.pin;
         currentHostToken = data.hostToken;
         totalQuestions = data.totalQuestions || 50;
-        document.getElementById('host-pin-val').textContent = currentPin;
-        document.getElementById('host-preview-pin').textContent = currentPin;
+        const pinValRec = document.getElementById('host-pin-val');
+        if (pinValRec) pinValRec.textContent = currentPin;
+        const previewPinRec = document.getElementById('host-preview-pin');
+        if (previewPinRec) previewPinRec.textContent = currentPin;
         fetchNetworkInfo();
 
         if (data.state === 'QUESTION' && data.currentQuestion) {
@@ -206,6 +316,7 @@ function handleHostEvent(event, data) {
     case 'timer_paused':
       isHostPaused = true;
       updatePauseButtonUI(true);
+      if (hostTimerRaf) cancelAnimationFrame(hostTimerRaf);
       if (hostTimerInterval) clearInterval(hostTimerInterval);
       break;
 
@@ -385,6 +496,12 @@ function showQuestion(data) {
   document.getElementById('host-answered-count').textContent = '0';
   document.getElementById('host-total-players-count').textContent = totalPlayers;
 
+  const ticker = document.getElementById('host-last-answered-ticker');
+  if (ticker) {
+    ticker.style.display = 'none';
+    ticker.innerHTML = '';
+  }
+
   // Render the 4 Option Cards with clear text
   for (let i = 0; i < 4; i++) {
     const card = document.getElementById(`host-opt-${i}`);
@@ -409,18 +526,27 @@ function resumeHostCircularTimer(remainingMs) {
     circleBar.style.strokeDasharray = `${circumference}`;
   }
 
-  const startTime = Date.now() - (totalMs - remainingMs);
+  const startPerfTime = performance.now() - (totalMs - remainingMs);
 
+  if (hostTimerRaf) cancelAnimationFrame(hostTimerRaf);
   if (hostTimerInterval) clearInterval(hostTimerInterval);
 
-  hostTimerInterval = setInterval(() => {
-    if (isHostPaused) return;
+  let lastSec = -1;
 
-    const elapsed = Date.now() - startTime;
+  function tick(now) {
+    if (isHostPaused) {
+      hostTimerRaf = requestAnimationFrame(tick);
+      return;
+    }
+
+    const elapsed = now - startPerfTime;
     const remaining = Math.max(0, totalMs - elapsed);
     hostRemainingMs = remaining;
     const sec = Math.ceil(remaining / 1000);
-    if (timerNum) timerNum.textContent = sec;
+    if (sec !== lastSec) {
+      lastSec = sec;
+      if (timerNum) timerNum.textContent = sec;
+    }
 
     const ratio = remaining / totalMs;
     const offset = circumference * (1 - ratio);
@@ -435,21 +561,38 @@ function resumeHostCircularTimer(remainingMs) {
       }
     }
 
-    if (remaining <= 0) {
-      clearInterval(hostTimerInterval);
+    if (remaining > 0) {
+      hostTimerRaf = requestAnimationFrame(tick);
     }
-  }, 100);
+  }
+
+  hostTimerRaf = requestAnimationFrame(tick);
 }
 
 function updateAnswerProgress(data) {
-  document.getElementById('host-answered-count').textContent = data.answeredCount;
-  document.getElementById('host-total-players-count').textContent = data.totalPlayers;
+  const answeredEl = document.getElementById('host-answered-count');
+  const totalEl = document.getElementById('host-total-players-count');
+  if (answeredEl) answeredEl.textContent = data.answeredCount;
+  if (totalEl) totalEl.textContent = data.totalPlayers;
+
+  if (data.lastAnsweredNickname) {
+    const ticker = document.getElementById('host-last-answered-ticker');
+    if (ticker) {
+      ticker.style.display = 'inline-flex';
+      const avSvg = data.lastAnsweredAvatar ? getAvatarSvg(data.lastAnsweredAvatar, 18) : '⚡';
+      ticker.innerHTML = `${avSvg} <span>${data.lastAnsweredNickname} locked in!</span>`;
+      ticker.style.animation = 'none';
+      void ticker.offsetWidth;
+      ticker.style.animation = 'tickerPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    }
+  }
 }
 
 // Show Question Result:
 // "the question as well as options must be there"
 // "after time limit ends the leaderboard must be coming"
 function showQuestionResult(data) {
+  if (hostTimerRaf) cancelAnimationFrame(hostTimerRaf);
   if (hostTimerInterval) clearInterval(hostTimerInterval);
   stopAutoLeaderboardAdvance();
   lastQuestionResultCache = data;
@@ -510,6 +653,44 @@ function showQuestionResult(data) {
     }
   }
 
+  // Render Live Score Sync Strip on Host Result Screen:
+  const syncStrip = document.getElementById('host-result-live-scores-strip');
+  if (syncStrip) {
+    const top = data.topPlayers || [];
+    if (top.length === 0) {
+      syncStrip.innerHTML = '<div class="sync-strip-empty">No student responses recorded this round</div>';
+    } else {
+      syncStrip.innerHTML = `
+        <div class="sync-strip-header">
+          <span class="sync-strip-title">⚡ Live Score Sync • Top Round Scorers (${data.totalAnswered || 0}/${data.totalPlayers || 0} Answered)</span>
+          <span class="sync-strip-status">🟢 Synced with Host</span>
+        </div>
+        <div class="sync-strip-cards">
+          ${top.map(p => {
+            const gainBadge = p.scoreGained > 0
+              ? `<span class="sync-gain-pill is-correct">+${p.scoreGained} pts</span>`
+              : `<span class="sync-gain-pill is-zero">+0 pts</span>`;
+            const timeBadge = p.timeTaken ? `<span class="sync-time-badge">⚡ ${p.timeTaken}s</span>` : '';
+            const streakBadge = p.streak > 1 ? `<span class="sync-streak-badge">🔥 ${p.streak}</span>` : '';
+            return `
+              <div class="sync-student-chip ${p.rank <= 3 ? 'rank-' + p.rank : ''}">
+                <span class="sync-chip-rank">#${p.rank}</span>
+                <span class="sync-chip-avatar">${getAvatarSvg(p.avatar, 24)}</span>
+                <span class="sync-chip-name">${p.nickname}</span>
+                <div class="sync-chip-score-box">
+                  <span class="sync-chip-total">${p.score.toLocaleString()} pts</span>
+                  ${gainBadge}
+                </div>
+                ${timeBadge}
+                ${streakBadge}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+  }
+
   // Question & all 4 options are shown cleanly.
   // Wait for Host to press Space or Enter (or click) to trigger animated Leaderboard
   stopAutoLeaderboardAdvance();
@@ -546,6 +727,7 @@ function showLeaderboard(data) {
   stopAutoLeaderboardAdvance();
   showHostScreen('host-screen-leaderboard');
   window.sounds.playSelect();
+  lastLeaderboardDataCache = data;
 
   currentQuestionIndex = data.questionIndex;
   isLastQuestion = (data.questionIndex + 1) >= data.totalQuestions;
@@ -569,12 +751,37 @@ function showLeaderboard(data) {
   const topPlayers = data.topPlayers || [];
   const topScore = topPlayers.length > 0 ? Math.max(1, topPlayers[0].score) : 1;
 
-  // Render Top 10 Students Standings
+  // Render Top 10 Students with Climactic Bottom-to-Top Rearrange
   topPlayers.forEach((p, idx) => {
     const row = document.createElement('div');
     const rankClass = p.rank <= 3 ? ` rank-${p.rank}` : '';
-    row.className = `host-lb-row${rankClass} animated-swap`;
-    row.style.animationDelay = `${idx * 0.08}s`;
+
+    // Calculate rank swap delta (▲ +2, ▼ -1, ★ NEW, —)
+    const prev = hostRankHistory.get(p.nickname);
+    let deltaBadge = '';
+    const prevScore = prev ? prev.score : 0;
+    let isClimber = false;
+
+    if (prev) {
+      const delta = prev.rank - p.rank;
+      if (delta > 0) {
+        deltaBadge = `<span class="rank-delta up">▲ +${delta}</span>`;
+        isClimber = true;
+      } else if (delta < 0) {
+        deltaBadge = `<span class="rank-delta down">▼ ${Math.abs(delta)}</span>`;
+      } else {
+        deltaBadge = `<span class="rank-delta same">—</span>`;
+      }
+    } else {
+      deltaBadge = `<span class="rank-delta new">★ NEW</span>`;
+      isClimber = true;
+    }
+    hostRankHistory.set(p.nickname, { rank: p.rank, score: p.score });
+
+    // Stagger from bottom (lowest rank) up to #1 for dramatic climb reveal
+    const delaySec = (topPlayers.length - 1 - idx) * 0.11;
+    row.className = `host-lb-row${rankClass} animated-swap ${isClimber ? 'climber-highlight' : ''}`;
+    row.style.animationDelay = `${delaySec}s`;
 
     let placePill = '';
     if (p.rank === 1) {
@@ -587,30 +794,12 @@ function showLeaderboard(data) {
       placePill = `<span class="host-place-pill place-normal">#${p.rank} • ${p.rank}th Place</span>`;
     }
 
-    // Calculate rank swap delta (▲ +2, ▼ -1, ★ NEW, —)
-    const prev = hostRankHistory.get(p.nickname);
-    let deltaBadge = '';
-    const prevScore = prev ? prev.score : 0;
-
-    if (prev) {
-      const delta = prev.rank - p.rank;
-      if (delta > 0) {
-        deltaBadge = `<span class="rank-delta up">▲ +${delta}</span>`;
-      } else if (delta < 0) {
-        deltaBadge = `<span class="rank-delta down">▼ ${Math.abs(delta)}</span>`;
-      } else {
-        deltaBadge = `<span class="rank-delta same">—</span>`;
-      }
-    } else {
-      deltaBadge = `<span class="rank-delta new">★ NEW</span>`;
-    }
-    hostRankHistory.set(p.nickname, { rank: p.rank, score: p.score });
-
     const streakHtml = p.streak > 1 ? `<span class="lb-streak-pill">🔥 ${p.streak} streak</span>` : '';
-    const barPct = Math.max(6, Math.min(100, Math.round((p.score / topScore) * 100)));
+    // Calculate bar percentage with minimum 8% for visibility
+    const barPct = Math.max(8, Math.min(100, Math.round((p.score / topScore) * 100)));
 
     row.innerHTML = `
-      <div class="host-lb-bg-bar" style="width: ${barPct}%;"></div>
+      <div class="host-lb-bg-bar" id="host-bg-bar-${idx}" style="width: ${barPct}%;"></div>
       <div class="host-lb-rank">
         ${placePill}
         ${deltaBadge}
@@ -620,17 +809,22 @@ function showLeaderboard(data) {
         <span class="host-lb-name">${p.nickname}</span>
         ${streakHtml}
       </div>
-      <div class="host-lb-score" id="host-score-num-${idx}">${prevScore.toLocaleString()} pts</div>
+      <div class="host-lb-score" id="host-score-num-${idx}">${p.score.toLocaleString()} pts</div>
     `;
     listEl.appendChild(row);
 
-    // Dynamic number rolling animation
-    setTimeout(() => {
-      const scoreEl = document.getElementById(`host-score-num-${idx}`);
-      if (scoreEl) {
-        animateScoreRollup(scoreEl, prevScore, p.score, 850);
-      }
-    }, idx * 80);
+    // If active and score increased, perform smooth roll-up
+    if (!document.hidden && prevScore !== p.score) {
+      setTimeout(() => {
+        const scoreEl = document.getElementById(`host-score-num-${idx}`);
+        if (scoreEl) {
+          animateScoreRollup(scoreEl, prevScore, p.score, 750);
+        }
+        if (idx === 0) {
+          if (window.sounds && window.sounds.playCorrect) window.sounds.playCorrect();
+        }
+      }, Math.round(delaySec * 1000));
+    }
   });
 
   // Update question jump select
@@ -735,12 +929,23 @@ function hostConfirmEndQuiz() {
 }
 
 function animateScoreRollup(element, startVal, endVal, duration = 850) {
-  if (startVal === endVal) {
+  if (!element) return;
+  if (startVal === endVal || document.hidden) {
     element.textContent = `${endVal.toLocaleString()} pts`;
     return;
   }
   const startTime = performance.now();
+  let done = false;
+  // Guaranteed completion fallback if host tab is backgrounded
+  const fallbackTimeout = setTimeout(() => {
+    if (!done) {
+      done = true;
+      element.textContent = `${endVal.toLocaleString()} pts`;
+    }
+  }, duration + 50);
+
   function step(now) {
+    if (done) return;
     const elapsed = now - startTime;
     const progress = Math.min(elapsed / duration, 1);
     const ease = 1 - Math.pow(1 - progress, 3);
@@ -748,10 +953,34 @@ function animateScoreRollup(element, startVal, endVal, duration = 850) {
     element.textContent = `${current.toLocaleString()} pts`;
     if (progress < 1) {
       requestAnimationFrame(step);
+    } else {
+      done = true;
+      clearTimeout(fallbackTimeout);
+      element.textContent = `${endVal.toLocaleString()} pts`;
     }
   }
   requestAnimationFrame(step);
 }
+
+// Auto-sync scores on tab visibility restore (prevents 0 pts if host tab was backgrounded)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  const list = (lastLeaderboardDataCache && lastLeaderboardDataCache.topPlayers) ||
+               (lastQuestionResultCache && lastQuestionResultCache.topPlayers);
+  if (list) {
+    list.forEach((p, idx) => {
+      const scoreEl = document.getElementById(`host-score-num-${idx}`);
+      if (scoreEl) {
+        scoreEl.textContent = `${p.score.toLocaleString()} pts`;
+      }
+      const barEl = document.getElementById(`host-bg-bar-${idx}`);
+      if (barEl && list[0] && list[0].score > 0) {
+        const pct = Math.max(8, Math.min(100, Math.round((p.score / list[0].score) * 100)));
+        barEl.style.width = `${pct}%`;
+      }
+    });
+  }
+});
 
 function hostProceedFromLeaderboard() {
   window.sounds.playSelect();
@@ -764,7 +993,7 @@ function hostProceedFromLeaderboard() {
 function showPodium(data) {
   showHostScreen('host-screen-podium');
   window.sounds.playFanfare();
-  window.confetti.burst(250);
+  if (window.confetti && window.confetti.burst) window.confetti.burst(250);
 
   finalResultsCache = data.allResults || [];
 

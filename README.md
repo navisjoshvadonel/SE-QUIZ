@@ -6,10 +6,10 @@ A full-stack, real-time multiplayer quiz game engineered for **70+ concurrent pl
 
 ## 🌟 Key Features
 
-1. **Common Room PIN & Instant QR Scan**:
+1. **Common Room PIN & Direct Lab Join**:
    - Host generates a common 6-digit game PIN (e.g., `430705`).
-   - High-resolution SVG QR Code automatically rendered on the host big screen. Players simply scan with their mobile phone cameras to open the join page with the PIN pre-filled.
-   - Works seamlessly on local Wi-Fi / LAN across mobile phones, tablets, and laptops.
+   - Clean, large display on the front projector or host monitor. Students simply type the PIN into their laptop or lab computer.
+   - Built with physical keyboard shortcuts (`A, B, C, D` or `1, 2, 3, 4` and Numpad) for fast classroom answering.
 
 2. **Player Onboarding & Kahoot-Style Lobby**:
    - Players select from **16 fun avatar emojis** (🚀, 🦊, ⚡, 🦄, 🤖, 🐯, 🎯, 🌟, 🍕, 🏆, etc.).
@@ -71,13 +71,13 @@ npm start
 ### 2. Open the Views
 - **🖥️ Host (Projector / Presentation Screen)**:
   Open [http://localhost:3000/host](http://localhost:3000/host) on the main monitor or projector.
-- **📱 Player (Mobile / Laptop View)**:
-  Open [http://localhost:3000/](http://localhost:3000/) on any device.
+- **💻 Student (Desktop / Laptop View)**:
+  Open [http://localhost:3000/](http://localhost:3000/) on any student laptop or computer.
 
-### 3. Playing on the Same Wi-Fi (Classroom / Auditorium)
+### 3. Playing on the Same Lab Network / Wi-Fi
 When the server boots, it detects and logs your local LAN IP (e.g., `http://192.168.1.15:3000/`).
-- Make sure players are connected to the same Wi-Fi.
-- Players can either scan the QR Code on the Host Screen with their phone camera or type the URL into their mobile browser.
+- Ensure all lab computers and laptops are connected to the same college LAN or Wi-Fi.
+- Students open the URL in Chrome, Edge, or Firefox on their laptops/PCs and enter the 6-digit Game PIN displayed on the front screen.
 
 ---
 

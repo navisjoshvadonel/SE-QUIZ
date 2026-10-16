@@ -4,10 +4,12 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const { WebSocketServer } = require('./miniWs');
 const GameManager = require('./gameManager');
 
 const PORT = process.env.PORT || 3000;
+const HOST_PASSWORD = process.env.HOST_PASSWORD || 'njnjnj';
 const gameManager = new GameManager();
 
 // Mime Types
@@ -80,6 +82,61 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/api/host/login' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const { password } = JSON.parse(body || '{}');
+        if (password && password.trim() === HOST_PASSWORD) {
+          const hostAuthToken = crypto.randomBytes(16).toString('hex');
+          gameManager.validHostAuthTokens.add(hostAuthToken);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, hostAuthToken }));
+        } else {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Incorrect host password.' }));
+        }
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Invalid request body.' }));
+      }
+    });
+    return;
+  }
+
+  if (pathname === '/api/submit_answer' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        console.log(`[REST Submit API] Received answer from pin="${data.pin}", sessionToken="${data.sessionToken}", option=${data.optionIndex}`);
+        let room = data.pin ? gameManager.getRoom(data.pin) : null;
+        if (!room && data.sessionToken) {
+          room = gameManager.getRoomBySessionToken(data.sessionToken);
+        }
+        if (room && data.sessionToken) {
+          const rec = gameManager.submitAnswer(room, data.sessionToken, data.optionIndex);
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          });
+          res.end(JSON.stringify({ success: true, answer: rec }));
+        } else {
+          console.warn(`[REST Submit API] Room not found for pin="${data.pin}", token="${data.sessionToken}"`);
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Room or player session not found' }));
+        }
+      } catch (err) {
+        console.error(`[REST Submit API Error]`, err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // Static File Serving
   let filePath = '';
   if (pathname === '/' || pathname === '/index.html') {
@@ -100,6 +157,9 @@ const server = http.createServer((req, res) => {
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.writeHead(200, { 'Content-Type': contentType });
     const stream = fs.createReadStream(filePath);
     stream.pipe(res);
@@ -115,8 +175,17 @@ wss.on('connection', (client) => {
       const { event, data } = JSON.parse(messageText);
 
       switch (event) {
-        // Host creates a room
+        // Host creates a room (requires password 'njnjnj' or valid host token)
         case 'host_create_room': {
+          const isPwValid = (data && data.password && data.password.trim() === HOST_PASSWORD) ||
+                            (data && data.hostAuthToken && gameManager.validHostAuthTokens.has(data.hostAuthToken));
+          if (!isPwValid) {
+            client.send({
+              event: 'host_auth_error',
+              data: { success: false, error: 'Incorrect host password. Access denied.' }
+            });
+            break;
+          }
           const room = gameManager.createRoom(data && data.customPin, client);
           client.send({
             event: 'host_created',
@@ -177,12 +246,34 @@ wss.on('connection', (client) => {
 
         // Student submits answer
         case 'submit_answer': {
-          const room = gameManager.getRoom(data.pin);
-          if (room) {
-            const sessionToken = data.sessionToken || room.clientToToken.get(client.id);
-            if (sessionToken) {
-              gameManager.submitAnswer(room, sessionToken, data.optionIndex);
+          let room = (data && data.pin) ? gameManager.getRoom(data.pin) : null;
+          if (!room && data && data.sessionToken) {
+            room = gameManager.getRoomBySessionToken(data.sessionToken);
+          }
+          if (!room && client.id) {
+            // Resilient fallback: find room by client id
+            for (const r of gameManager.rooms.values()) {
+              if (r.clientToToken && r.clientToToken.has(client.id)) {
+                room = r;
+                break;
+              }
             }
+          }
+          if (room) {
+            const sessionToken = (data && data.sessionToken) || room.clientToToken.get(client.id);
+            if (sessionToken) {
+              const player = room.players.get(sessionToken);
+              if (player) {
+                if (player.client !== client) {
+                  player.client = client;
+                  player.isConnected = true;
+                  room.clientToToken.set(client.id, sessionToken);
+                }
+                gameManager.submitAnswer(room, sessionToken, data.optionIndex);
+              }
+            }
+          } else {
+            console.warn(`[Quiz Submit] Room not found for PIN "${data && data.pin}" and token "${data && data.sessionToken}"`);
           }
           break;
         }
@@ -293,10 +384,10 @@ server.listen(PORT, '0.0.0.0', () => {
   const localIp = getLocalIp();
   console.log('\n========================================================');
   console.log('🎮 SE QUIZ ARENA - Server Online with Reconnect Resilience!');
-  console.log(`📱 Player Mobile / Web: http://localhost:${PORT}/`);
-  console.log(`🖥️ Host Big Screen View: http://localhost:${PORT}/host`);
-  console.log(`🌐 Local Wi-Fi Join:     http://${localIp}:${PORT}/`);
-  console.log(`📡 Local Wi-Fi Host:     http://${localIp}:${PORT}/host`);
+  console.log(`💻 Student Desktop / Laptop: http://localhost:${PORT}/`);
+  console.log(`🖥️ Host Big Screen View:     http://localhost:${PORT}/host`);
+  console.log(`🌐 Local Lab Wi-Fi Join:     http://${localIp}:${PORT}/`);
+  console.log(`📡 Local Lab Wi-Fi Host:     http://${localIp}:${PORT}/host`);
   console.log('========================================================\n');
 });
 

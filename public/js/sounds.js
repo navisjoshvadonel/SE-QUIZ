@@ -179,7 +179,7 @@ class SoundEngine {
     // Frequencies (Hz)
     const B3 = 246.94, C4 = 261.63, D4 = 293.66, E4 = 329.63, Fs4 = 369.99, G4 = 392.00, A4 = 440.00;
     const B4 = 493.88, C5 = 523.25, D5 = 587.33, E5 = 659.25, Fs5 = 739.99, G5 = 783.99;
-    const E2 = 82.41, C3 = 130.81, G2 = 98.00, D3 = 146.83, E3 = 164.81;
+    const E2 = 82.41, C3 = 130.81, G2 = 98.00, D3 = 146.83, E3 = 164.81, G3 = 196.00, A3 = 220.00;
 
     // Attack on Titan "Eye-Water" Iconic progression (Melody + Soft Chords)
     const eyeWaterSequence = [
@@ -241,11 +241,15 @@ class SoundEngine {
 
 window.sounds = new SoundEngine();
 
-// Auto-start ambient music on first user gesture anywhere
-document.addEventListener('pointerdown', () => {
-  if (window.sounds && !window.sounds.isBgmPlaying && !window.sounds.isMuted) {
-    window.sounds.init();
-    window.sounds.startLobbyMusic();
-  }
-}, { once: true });
+// Auto-start ambient music and prime Web Audio context on first user gesture anywhere
+['pointerdown', 'keydown'].forEach(evt => {
+  document.addEventListener(evt, () => {
+    if (window.sounds) {
+      window.sounds.init();
+      if (!window.sounds.isBgmPlaying && !window.sounds.isMuted) {
+        window.sounds.startLobbyMusic();
+      }
+    }
+  }, { once: true });
+});
 

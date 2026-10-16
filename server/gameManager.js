@@ -1,12 +1,13 @@
-// server/gameManager.js
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { createWsTextFrame } = require('./miniWs');
 
 class GameManager {
   constructor() {
     this.rooms = new Map();
     this.defaultQuestions = this.loadQuestions();
+    this.validHostAuthTokens = new Set();
   }
 
   loadQuestions() {
@@ -63,16 +64,35 @@ class GameManager {
     return this.rooms.get(pin.toString().trim().toUpperCase());
   }
 
+  getRoomBySessionToken(sessionToken) {
+    if (!sessionToken) return null;
+    for (const room of this.rooms.values()) {
+      if (room.players && room.players.has(sessionToken)) {
+        return room;
+      }
+    }
+    return null;
+  }
+
   broadcastToRoom(room, event, data) {
-    const payload = JSON.stringify({ event, data });
+    const text = JSON.stringify({ event, data });
+    const frame = createWsTextFrame(text);
     // Send to host
     if (room.hostClient && !room.hostClient.socket.destroyed) {
-      room.hostClient.send(payload);
+      if (typeof room.hostClient.sendFrame === 'function') {
+        room.hostClient.sendFrame(frame);
+      } else {
+        room.hostClient.send(text);
+      }
     }
-    // Send to all connected players
+    // Send to all connected players with zero-copy pre-framed buffer
     for (const player of room.players.values()) {
       if (player.isConnected && player.client && !player.client.socket.destroyed) {
-        player.client.send(payload);
+        if (typeof player.client.sendFrame === 'function') {
+          player.client.sendFrame(frame);
+        } else {
+          player.client.send(text);
+        }
       }
     }
   }
@@ -169,7 +189,10 @@ class GameManager {
 
   // Resilient Reconnection for accidental F5 / page reloads
   reconnectPlayer(pin, sessionToken, newClient) {
-    const room = this.getRoom(pin);
+    let room = this.getRoom(pin);
+    if (!room && sessionToken) {
+      room = this.getRoomBySessionToken(sessionToken);
+    }
     if (!room) {
       return { success: false, error: 'Room does not exist or has closed.' };
     }
@@ -236,6 +259,7 @@ class GameManager {
 
     return {
       success: true,
+      pin: room.pin,
       sessionToken,
       player: {
         nickname: player.nickname,
@@ -353,10 +377,6 @@ class GameManager {
       return { success: false, error: 'Unauthorized or room not found.' };
     }
 
-    if (room.players.size === 0) {
-      return { success: false, error: 'Cannot start with 0 students in the lobby!' };
-    }
-
     room.currentQuestionIndex = -1;
     this.nextQuestion(room);
     return { success: true };
@@ -376,7 +396,7 @@ class GameManager {
     room.answers.clear();
 
     const currentQ = room.questions[room.currentQuestionIndex];
-    let countdown = 3;
+    let countdown = 5;
 
     this.broadcastToRoom(room, 'countdown_start', {
       countdown,
@@ -513,28 +533,39 @@ class GameManager {
   }
 
   submitAnswer(room, sessionToken, optionIndex) {
-    if (room.state !== 'QUESTION') return;
-    if (room.answers.has(sessionToken)) return; // already answered
+    if (room.state !== 'QUESTION') return null;
+    if (room.answers.has(sessionToken)) {
+      // Already recorded this round - return existing record (prevents double scoring)
+      return room.answers.get(sessionToken);
+    }
 
     const player = room.players.get(sessionToken);
-    if (!player) return;
+    if (!player) return null;
 
+    const optIdx = parseInt(optionIndex, 10);
     const q = room.questions[room.currentQuestionIndex];
+    if (!q) return null;
+
+    const correctIdx = parseInt(q.correctIndex, 10);
+    const isCorrect = Number.isInteger(optIdx) && optIdx === correctIdx;
+
     const now = Date.now();
-    const timeTaken = Math.max(0.1, (now - room.questionStartTime) / 1000);
-    const isCorrect = optionIndex === q.correctIndex;
+    const timeLimit = room.timeLimit || 20;
+    const startTime = room.questionStartTime || (now - 1000);
+    const timeTaken = Math.max(0.05, Math.min(timeLimit, (now - startTime) / 1000));
 
     let scoreGained = 0;
     let streakBonus = 0;
 
     if (isCorrect) {
-      // High-speed decay scoring: The faster the click, the higher the points!
-      // Instant click (<= 0.5s): ~980 - 1000 base pts
-      // Fast click (2s / 20s): ~930 pts
-      // Mid click (10s / 20s): ~650 pts
-      // Buzzer click (20s): 300 base pts
-      const timeRatio = Math.min(1, Math.max(0, timeTaken / room.timeLimit));
-      const basePoints = Math.max(300, Math.round(1000 - (timeRatio * 700)));
+      // Authentic Kahoot Scoring Formula:
+      // Points = round((1 - ((timeTaken / timeLimit) / 2)) * 1000)
+      // Instant click (0s): 1000 points
+      // Mid click (10s / 20s): 750 points
+      // Buzzer click (20s / 20s): 500 points
+      // Wrong answer: 0 points
+      const timeRatio = Math.min(1, Math.max(0, timeTaken / timeLimit));
+      const basePoints = Math.round((1 - (timeRatio / 2)) * 1000);
 
       player.streak++;
       if (player.streak > player.maxStreak) {
@@ -542,19 +573,23 @@ class GameManager {
       }
       player.correctCount++;
 
+      // Kahoot Streak Bonus for consecutive correct answers:
       if (player.streak >= 5) streakBonus = 500;
-      else if (player.streak === 4) streakBonus = 400;
-      else if (player.streak === 3) streakBonus = 250;
+      else if (player.streak === 4) streakBonus = 300;
+      else if (player.streak === 3) streakBonus = 200;
       else if (player.streak === 2) streakBonus = 100;
+      else streakBonus = 0;
 
       scoreGained = basePoints + streakBonus;
       player.score += scoreGained;
     } else {
       player.streak = 0;
+      scoreGained = 0;
+      streakBonus = 0;
     }
 
     const answerRecord = {
-      optionIndex,
+      optionIndex: optIdx,
       timeTaken: Number(timeTaken.toFixed(2)),
       scoreGained,
       streakBonus,
@@ -565,34 +600,87 @@ class GameManager {
     room.answers.set(sessionToken, answerRecord);
     player.answersHistory.push(answerRecord);
 
+    console.log(`[Quiz Score] Player "${player.nickname}" answered option ${optIdx} (correct=${correctIdx}) in ${timeTaken.toFixed(2)}s -> ${isCorrect ? `CORRECT (+${scoreGained} pts, total=${player.score})` : 'WRONG (+0 pts)'}`);
+
     // Instant feedback to player (acknowledges receipt without revealing right/wrong)
     this.sendToPlayer(player, 'answer_received', {
       received: true,
       timeTaken: answerRecord.timeTaken,
-      optionIndex
+      optionIndex: optIdx
     });
 
-    // Broadcast live answer progress to both Host and all Students in real-time
-    this.broadcastToRoom(room, 'answer_progress', {
+    const activePlayerCount = Array.from(room.players.values()).filter(p => p.isConnected).length;
+
+    // Host always receives instant progress updates for live presenter counters
+    this.sendToHost(room, 'answer_progress', {
       answeredCount: room.answers.size,
-      totalPlayers: room.players.size
+      totalPlayers: activePlayerCount,
+      lastAnsweredNickname: player.nickname,
+      lastAnsweredAvatar: player.avatar
     });
+
+    // Throttled student broadcast: update students smoothly without packet floods during 80+ rushes
+    if (room.answers.size === 1 || room.answers.size >= activePlayerCount || !room.studentProgressTimer) {
+      if (room.studentProgressTimer) clearTimeout(room.studentProgressTimer);
+      room.studentProgressTimer = null;
+      const progressPayload = JSON.stringify({
+        event: 'answer_progress',
+        data: {
+          answeredCount: room.answers.size,
+          totalPlayers: activePlayerCount,
+          lastAnsweredNickname: player.nickname,
+          lastAnsweredAvatar: player.avatar
+        }
+      });
+      const progressFrame = createWsTextFrame(progressPayload);
+      for (const p of room.players.values()) {
+        if (p.isConnected && p.client && !p.client.socket.destroyed) {
+          if (typeof p.client.sendFrame === 'function') p.client.sendFrame(progressFrame);
+          else p.client.send(progressPayload);
+        }
+      }
+    } else if (!room.pendingStudentProgress) {
+      room.pendingStudentProgress = true;
+      room.studentProgressTimer = setTimeout(() => {
+        room.pendingStudentProgress = false;
+        room.studentProgressTimer = null;
+        const curActive = Array.from(room.players.values()).filter(p => p.isConnected).length;
+        const delayedPayload = JSON.stringify({
+          event: 'answer_progress',
+          data: {
+            answeredCount: room.answers.size,
+            totalPlayers: curActive
+          }
+        });
+        const delayedFrame = createWsTextFrame(delayedPayload);
+        for (const p of room.players.values()) {
+          if (p.isConnected && p.client && !p.client.socket.destroyed) {
+            if (typeof p.client.sendFrame === 'function') p.client.sendFrame(delayedFrame);
+            else p.client.send(delayedPayload);
+          }
+        }
+      }, 120);
+    }
 
     this.checkAllAnswered(room);
+    return answerRecord;
   }
 
   checkAllAnswered(room) {
-    if (room.state === 'QUESTION' && room.answers.size >= room.players.size && room.players.size > 0) {
+    if (room.state !== 'QUESTION') return;
+    const connectedPlayers = Array.from(room.players.values()).filter(p => p.isConnected);
+    const activeCount = connectedPlayers.length;
+    if (activeCount > 0 && room.answers.size >= activeCount) {
       if (room.questionTimer) clearTimeout(room.questionTimer);
-      // Give 2.2-second suspense countdown so answer isn't abruptly flashed
+      // Give 1.5-second suspense countdown so answer isn't abruptly flashed
       this.broadcastToRoom(room, 'all_answered_countdown', {
-        delayMs: 2200,
+        delayMs: 1500,
         message: 'All answers locked in! 🔒 Revealing results...'
       });
       if (room.allAnsweredTimeout) clearTimeout(room.allAnsweredTimeout);
       room.allAnsweredTimeout = setTimeout(() => {
         this.resolveQuestion(room);
-      }, 2200);
+      }, 1500);
     }
   }
 
@@ -616,13 +704,20 @@ class GameManager {
       }
     }
 
-    const top10Summary = sorted.slice(0, 10).map((p, idx) => ({
-      rank: idx + 1,
-      nickname: p.nickname,
-      avatar: p.avatar,
-      score: p.score,
-      streak: p.streak
-    }));
+    const top10Summary = sorted.slice(0, 10).map((p, idx) => {
+      const ans = room.answers.get(p.sessionToken);
+      return {
+        rank: idx + 1,
+        sessionToken: p.sessionToken,
+        nickname: p.nickname,
+        avatar: p.avatar,
+        score: p.score,
+        streak: p.streak,
+        scoreGained: ans ? ans.scoreGained : 0,
+        isCorrect: ans ? ans.isCorrect : false,
+        timeTaken: ans ? ans.timeTaken : null
+      };
+    });
 
     // Host result with full question text, options, correct answer, explanation, and top 10 standings
     this.sendToHost(room, 'question_result_host', {
@@ -793,6 +888,15 @@ class GameManager {
       totalPlayers: sorted.length,
       totalQuestions: room.questions.length
     };
+
+    console.log('\n========================================');
+    console.log(`🏆 QUIZ ARENA COMPLETE - ROOM ${room.pin}`);
+    console.log('🎉 OFFICIAL PODIUM - TOP 3 CHAMPIONS:');
+    if (podium.first) console.log(`🥇 1st Place: ${podium.first.nickname} - ${podium.first.score.toLocaleString()} pts (${podium.first.accuracy}%)`);
+    if (podium.second) console.log(`🥈 2nd Place: ${podium.second.nickname} - ${podium.second.score.toLocaleString()} pts (${podium.second.accuracy}%)`);
+    if (podium.third) console.log(`🥉 3rd Place: ${podium.third.nickname} - ${podium.third.score.toLocaleString()} pts (${podium.third.accuracy}%)`);
+    console.log(`Total Participants: ${sorted.length}`);
+    console.log('========================================\n');
 
     this.broadcastToRoom(room, 'game_over', podium);
   }

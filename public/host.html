@@ -53,6 +53,39 @@
       </div>
     </header>
 
+    <!-- HOST VIEW 0: AUTHENTICATION GATEWAY (PASSWORD PROTECTED) -->
+    <main id="host-screen-auth" class="host-view" style="display: none;">
+      <div class="auth-box" style="max-width: 500px; margin: 4vh auto 0;">
+        <div class="auth-icon-circle" style="background: rgba(99, 102, 241, 0.18); border-color: rgba(99, 102, 241, 0.45);">🔒</div>
+        <h2 class="auth-heading">Host Authentication</h2>
+        <p class="auth-subheading">Enter the master host password to open the Quiz Control Arena</p>
+
+        <form id="form-host-direct-login" onsubmit="event.preventDefault(); verifyDirectHostPassword();">
+          <div class="form-group">
+            <input 
+              type="password" 
+              id="input-direct-host-pw" 
+              class="pc-input-text" 
+              placeholder="Enter host password" 
+              autocomplete="current-password" 
+              required
+              autofocus
+              style="text-align: center; font-size: 1.4rem; letter-spacing: 0.15em; font-family: var(--font-code); font-weight: 800; border-radius: 16px;"
+            >
+          </div>
+          <button type="submit" id="btn-direct-host-submit" class="btn-launch-game" style="width: 100%; border-radius: 14px; font-size: 1.15rem; padding: 1rem; justify-content: center;">
+            <span>Unlock Presentation Host ➔</span>
+          </button>
+          <div style="margin-top: 1.25rem; text-align: center;">
+            <a href="/" style="color: #818CF8; font-weight: 700; text-decoration: none; font-size: 0.95rem;">
+              ← Student? Join with Game PIN here
+            </a>
+          </div>
+        </form>
+        <p id="direct-host-error" class="form-error-msg" style="display: none;"></p>
+      </div>
+    </main>
+
     <!-- HOST VIEW 1: LOBBY (ULTRA-CLEAN ARENA) -->
     <main id="host-screen-lobby" class="host-view active">
       <div class="lab-lobby-layout clean-full-arena">
@@ -88,7 +121,7 @@
     <!-- HOST VIEW 2: COUNTDOWN -->
     <main id="host-screen-countdown" class="host-view" style="display: none;">
       <div class="countdown-hero-card">
-        <div class="countdown-num-big" id="host-countdown-num">3</div>
+        <div class="countdown-num-big" id="host-countdown-num">5</div>
         <div class="countdown-unit-badge" id="host-countdown-unit-pill">UNIT I – Software Process Models</div>
         <h2 class="countdown-preview-q" id="host-countdown-preview-title">Software Engineering</h2>
         <div class="countdown-pill" id="host-countdown-qnum">Question 1 of 50</div>
@@ -107,6 +140,7 @@
           </div>
           
           <div class="q-presenter-right-actions">
+            <div id="host-last-answered-ticker" class="host-live-ticker" style="display: none;"></div>
             <div class="live-answers-meter">
               <span class="meter-icon">👥</span>
               <strong id="host-answered-count">0</strong>
@@ -252,6 +286,11 @@
           </div>
         </div>
 
+        <!-- Live Score Sync Strip: Instant Visibility for Host of Student Points -->
+        <div class="host-result-live-sync-container" id="host-result-live-scores-strip">
+          <!-- Dynamically populated in host.js with students, rank, avatar, score, and points gained -->
+        </div>
+
         <!-- Key Takeaway & Explanation Card -->
         <div class="takeaway-card">
           <div class="takeaway-badge">💡 Software Engineering Concept</div>
@@ -349,10 +388,10 @@
   </div>
 
   <!-- Audio, Confetti & Interactive Click FX Scripts -->
-  <script src="js/avatars.js"></script>
-  <script src="js/sounds.js"></script>
-  <script src="js/confetti.js"></script>
-  <script src="js/cursorFx.js"></script>
-  <script src="js/host.js"></script>
+  <script src="js/avatars.js?v=3.1"></script>
+  <script src="js/sounds.js?v=3.1"></script>
+  <script src="js/confetti.js?v=3.1"></script>
+  <script src="js/cursorFx.js?v=3.1"></script>
+  <script src="js/host.js?v=3.1"></script>
 </body>
 </html>
