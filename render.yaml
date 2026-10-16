@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: se-quiz-arena
+    env: node
+    plan: free
+    buildCommand: "echo 'Zero dependencies needed'"
+    startCommand: "node server/server.js"
+    envVars:
+      - key: PORT
+        value: 10000

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SE Quiz Arena | Student Desktop</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>">
+</head>
+<body class="student-body">
+
+  <!-- Ambient Cinematic Aurora Glows & Floating Particles -->
+  <div class="aurora-bg" aria-hidden="true">
+    <div class="aurora-glow aurora-glow-1"></div>
+    <div class="aurora-glow aurora-glow-2"></div>
+    <div class="aurora-glow aurora-glow-3"></div>
+    <!-- Ambient Cinematic Studio Lighting (No cheesy AI floating shapes) -->
+    <div class="aurora-glow aurora-glow-1"></div>
+    <div class="aurora-glow aurora-glow-2"></div>
+    <div class="aurora-glow aurora-glow-3"></div>
+  </div>
+
+  <div class="pc-student-container">
+
+    <!-- Top Navigation Header -->
+    <header class="pc-student-header">
+      <div class="student-brand">
+        <span class="student-logo-icon">⚡</span>
+        <div>
+          <h1 class="student-logo-title">SE QUIZ ARENA</h1>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div class="student-header-meta" id="student-header-meta" style="display: none;">
+          <div class="meta-tag">
+            <span id="nav-player-avatar" style="display: inline-flex; align-items: center;"></span>
+            <strong id="nav-player-name">Student</strong>
+          </div>
+        </div>
+
+        <button class="theme-toggle-btn" id="theme-toggle-btn" type="button" onclick="toggleTheme()" title="Switch Light/Dark Mode" aria-label="Toggle Theme">
+          <span class="theme-toggle-icon" id="theme-toggle-icon">☀️</span>
+          <span class="theme-toggle-text" id="theme-toggle-text">Light Mode</span>
+        </button>
+
+        <button class="fullscreen-toggle-btn" id="fs-toggle-btn" type="button" onclick="toggleFullscreen()" title="Toggle Fullscreen" aria-label="Toggle Fullscreen">
+          <span class="fs-toggle-icon">⛶</span>
+          <span class="fs-toggle-text">Fullscreen</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Desktop Workspace Card -->
+    <main class="pc-main-workspace" id="quiz-main-card">
+
+      <!-- SCREEN 1: ENTER PIN -->
+      <section id="screen-pin" class="view-screen active">
+        <div class="auth-box">
+          <div class="auth-icon-circle">🔑</div>
+          <h2 class="auth-heading">Join Quiz Arena</h2>
+          <p class="auth-subheading">Enter the 6-digit Game PIN displayed on the front screen</p>
+
+          <form id="form-pin" onsubmit="event.preventDefault(); submitPin();">
+            <div class="form-group">
+              <input 
+                type="text" 
+                id="input-pin-val" 
+                class="pc-input-pin" 
+                placeholder="000000" 
+                maxlength="10" 
+                autocomplete="off" 
+                autocapitalize="characters" 
+                required
+                autofocus
+              >
+            </div>
+            <button type="submit" id="btn-pin-submit" class="btn-pc-primary">
+              <span>Continue ➔</span>
+            </button>
+          </form>
+          <p id="pin-error-msg" class="form-error-msg" style="display: none;"></p>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: CHOOSE NICKNAME -->
+      <section id="screen-nickname" class="view-screen">
+        <div class="auth-box">
+          <div class="auth-icon-circle" id="nickname-avatar-preview" onclick="shuffleAvatar()" title="Click to shuffle insignia" style="cursor: pointer; user-select: none; display: inline-flex; align-items: center; justify-content: center; background: transparent; box-shadow: none;"></div>
+          <div id="nickname-avatar-role" style="font-size: 0.95rem; font-weight: 800; color: #818CF8; margin-bottom: 0.75rem; letter-spacing: 0.03em;">Terminal Root • Kernel Hacker</div>
+          <h2 class="auth-heading">Enter Nickname</h2>
+          <p class="auth-subheading">Tap your insignia above to customize, then choose your name</p>
+
+          <form id="form-nickname" onsubmit="event.preventDefault(); submitNickname();">
+            <div class="form-group">
+              <input 
+                type="text" 
+                id="input-nickname-val" 
+                class="pc-input-text" 
+                placeholder="Enter your nickname" 
+                maxlength="20" 
+                autocomplete="off" 
+                required
+                style="text-align: center; font-size: 1.5rem; font-family: var(--font-main); font-weight: 800; border-radius: 16px;"
+              >
+            </div>
+
+            <button type="submit" id="btn-join-submit" class="btn-pc-primary">
+              <span>Join Game 🚀</span>
+            </button>
+          </form>
+          <p id="nick-error-msg" class="form-error-msg" style="display: none;"></p>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: LOBBY WAITING ROOM -->
+      <section id="screen-lobby" class="view-screen">
+        <div class="pc-lobby-status-card">
+          <div class="pc-lobby-avatar" id="lobby-my-avatar" style="display: flex; align-items: center; justify-content: center; background: transparent; box-shadow: none;"></div>
+          <h2 class="pc-lobby-player-name" id="lobby-my-name">Student Name</h2>
+
+          <div class="pc-lobby-waiting-row">
+            <span class="pulsing-live-dot"></span>
+            <span>Connected & Ready! Waiting for host to launch the quiz...</span>
+          </div>
+
+          <div class="pc-lobby-counter-pill">
+            👥 <strong id="lobby-player-count">1</strong> Students currently in lobby
+          </div>
+        </div>
+
+        <div class="pc-trivia-tip-box" id="trivia-tip-box">
+          💡 <strong>SE Tip:</strong> git cherry-pick applies specific commits from another branch without merging the whole branch!
+        </div>
+      </section>
+
+      <!-- SCREEN 4: COUNTDOWN -->
+      <section id="screen-countdown" class="view-screen">
+        <div class="pc-countdown-display">
+          <div class="pc-countdown-num" id="countdown-val">3</div>
+          <div class="pc-countdown-unit" id="countdown-unit-pill" style="display: none;">UNIT I – Software Process Models</div>
+          <h3 class="pc-countdown-title" id="countdown-sub">Get Ready at your Keyboard!</h3>
+          <p class="pc-countdown-qnum" id="countdown-qnum">Question 1 of 50</p>
+        </div>
+      </section>
+
+      <!-- SCREEN 5: QUESTION ACTIVE -->
+      <section id="screen-question" class="view-screen">
+        <div class="pc-q-header">
+          <div class="pc-q-meta-left">
+            <span class="pc-q-badge" id="q-number-pill">Question 1 of 50</span>
+            <span class="pc-unit-badge" id="q-unit-pill" style="display: none;">UNIT I – Software Process Models</span>
+            <span class="pc-streak-badge" id="q-streak-pill">🔥 0 streak</span>
+          </div>
+
+          <!-- Keyboard shortcut hint for PC students -->
+          <div class="pc-keyboard-hint">
+            ⌨️ Keyboard shortcuts: Press <strong>A, B, C, D</strong> or <strong>1, 2, 3, 4</strong>
+          </div>
+        </div>
+
+        <!-- Timer Bar -->
+        <div class="pc-timer-bar-container">
+          <div class="pc-timer-bar-fill" id="time-bar-fill"></div>
+        </div>
+
+        <!-- Question Text -->
+        <div class="pc-question-box">
+          <h2 class="pc-question-title" id="question-text">Loading question text...</h2>
+        </div>
+
+        <!-- 4 Wide Option Cards (A, B, C, D) - NO SHAPES -->
+        <div class="pc-options-grid" id="options-grid">
+          <button class="pc-option-btn opt-a" id="opt-0" onclick="chooseOption(0)">
+            <span class="opt-tag">A</span>
+            <span class="opt-text-val" id="opt-label-0">Option A</span>
+            <span class="opt-kbd-badge">[1 / A]</span>
+          </button>
+
+          <button class="pc-option-btn opt-b" id="opt-1" onclick="chooseOption(1)">
+            <span class="opt-tag">B</span>
+            <span class="opt-text-val" id="opt-label-1">Option B</span>
+            <span class="opt-kbd-badge">[2 / B]</span>
+          </button>
+
+          <button class="pc-option-btn opt-c" id="opt-2" onclick="chooseOption(2)">
+            <span class="opt-tag">C</span>
+            <span class="opt-text-val" id="opt-label-2">Option C</span>
+            <span class="opt-kbd-badge">[3 / C]</span>
+          </button>
+
+          <button class="pc-option-btn opt-d" id="opt-3" onclick="chooseOption(3)">
+            <span class="opt-tag">D</span>
+            <span class="opt-text-val" id="opt-label-3">Option D</span>
+            <span class="opt-kbd-badge">[4 / D]</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- SCREEN 6: ANSWER LOCKED IN (SUSPENSEFUL WAITING — NO EARLY ANSWER LEAKS) -->
+      <section id="screen-locked" class="view-screen">
+        <div class="pc-locked-card">
+          <div class="pc-locked-icon-pulse">
+            <span class="locked-padlock-icon">🔒</span>
+          </div>
+          
+          <div class="pc-locked-choice-banner">
+            <span class="locked-choice-label">YOUR SUBMITTED SELECTION</span>
+            <div class="pc-locked-tag" id="locked-choice-tag">Option A</div>
+          </div>
+
+          <h2 class="pc-locked-heading" id="locked-status-heading">Answer Locked In!</h2>
+          <p class="pc-locked-sub" id="locked-status-sub">
+            Your response is registered with microsecond precision.
+          </p>
+
+          <!-- Live Classroom Answer Progress Meter for 60+ Students -->
+          <div class="pc-locked-progress-container">
+            <div class="pc-locked-progress-meta">
+              <span class="pc-locked-progress-title">Classroom Responses:</span>
+              <span class="pc-locked-progress-count">
+                <strong id="locked-answered-count">0</strong> / <span id="locked-total-count">0</span> answered
+              </span>
+            </div>
+            <div class="pc-locked-progress-track">
+              <div class="pc-locked-progress-bar" id="locked-progress-bar"></div>
+            </div>
+            <div class="pc-locked-live-sub" id="locked-live-sub">
+              ⏳ Correct answer & points reveal when time expires!
+            </div>
+          </div>
+
+          <!-- Helpful SE Pro-Tip While Waiting -->
+          <div class="pc-locked-tip-card">
+            <span class="locked-tip-badge">💡 PRO-TIP</span>
+            <div class="locked-tip-text" id="locked-tip-text">
+              Accuracy builds score streaks! Keep consecutive right answers for massive multiplier bonus points!
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 7: QUESTION RESULT (FULL SCREEN IMMERSIVE ARENA) -->
+      <section id="screen-result" class="view-screen">
+        <div class="result-hero-canvas" id="result-canvas">
+          
+          <div class="result-hero-main">
+            <!-- Large Clean Symbol Badge -->
+            <div class="result-hero-badge" id="result-icon-badge">
+              <span class="result-hero-symbol" id="result-icon">✕</span>
+            </div>
+
+            <!-- Dynamic Human Headline -->
+            <h1 class="result-hero-headline" id="result-title">Not quite!</h1>
+            <p class="result-hero-sub" id="result-sub-msg">Shake it off — plenty of points ahead!</p>
+
+            <!-- Score Pill -->
+            <div class="result-score-badge">
+              <span class="result-score-val" id="result-score-gain">+0 pts</span>
+            </div>
+
+            <!-- Streak Recovery / Flame Banner -->
+            <div class="result-streak-pill" id="result-streak-text">
+              Streak broken — time to bounce back! 💪
+            </div>
+
+            <!-- The Real Solution Banner -->
+            <div class="result-solution-banner" id="result-correct-ref">
+              <div class="solution-banner-inner">
+                <span class="solution-tag">✓ Correct Answer:</span>
+                <span class="solution-text" id="result-correct-text">Option B – Waterfall Model</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Human Breakdown Card -->
+          <div class="result-takeaway-card" id="result-takeaway-card">
+            <div class="takeaway-badge-row">
+              <span class="takeaway-pill">💡 Quick Breakdown</span>
+            </div>
+            <p class="takeaway-content-text" id="result-explanation">
+              The Waterfall Model is linear-sequential where each phase must finish completely before the next begins.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- SCREEN 8: LEADERBOARD UPDATE -->
+      <section id="screen-leaderboard" class="view-screen">
+        <div class="pc-rank-hero-card">
+          <div class="pc-rank-digits" id="lb-player-rank">#1</div>
+          <div class="pc-rank-subtitle">Your Current Position</div>
+          <div class="pc-rank-score-pill" id="lb-player-score">1,240 pts</div>
+          <div class="pc-rank-difference" id="lb-rank-diff">You are in the lead! 👑</div>
+        </div>
+
+        <h3 class="pc-section-heading">🏆 Top 10 Standings</h3>
+        <div class="pc-leaderboard-list" id="lb-top10-list">
+          <!-- Top 10 dynamically inserted -->
+        </div>
+      </section>
+
+      <!-- SCREEN 9: GAME OVER FINAL TOP 10 -->
+      <section id="screen-gameover" class="view-screen">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <div style="font-size: 4rem;">🏆</div>
+          <h2 class="auth-heading" style="font-size: 2.5rem; color: #4F46E5;">
+            Quiz Complete!
+          </h2>
+          <p class="auth-subheading">
+            Great competition! Check your final ranking and the official Top 10 below.
+          </p>
+        </div>
+
+        <div class="pc-rank-hero-card" style="background: linear-gradient(135deg, #059669 0%, #10B981 100%);">
+          <div class="pc-rank-digits" id="final-player-rank">#3</div>
+          <div class="pc-rank-subtitle">Final Rank</div>
+          <div class="pc-rank-score-pill" id="final-player-score">14,200 pts</div>
+          <div class="pc-rank-difference" id="final-player-accuracy">Accuracy: 88%</div>
+        </div>
+
+        <h3 class="pc-section-heading">🌟 Official Top 10 Leaderboard</h3>
+        <div class="pc-leaderboard-list" id="final-top10-list" style="max-height: 280px; overflow-y: auto;">
+          <!-- Final top 10 inserted -->
+        </div>
+
+        <div style="display: flex; justify-content: center; margin-top: 1.75rem;">
+          <button type="button" class="btn-pc-primary" style="width: auto; padding: 0.9rem 2.5rem;" onclick="window.location.reload()">
+            🔄 Join Another Session
+          </button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Audio, Confetti & Interactive Click FX Scripts -->
+  <script src="js/avatars.js"></script>
+  <script src="js/sounds.js"></script>
+  <script src="js/confetti.js"></script>
+  <script src="js/cursorFx.js"></script>
+  <script src="js/player.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "se-quiz",
+  "version": "1.0.0",
+  "description": "Full-stack real-time multiplayer Kahoot-inspired quiz game (Zero Dependencies)",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "quiz",
+    "kahoot",
+    "realtime",
+    "multiplayer",
+    "software-engineering"
+  ],
+  "author": "",
+  "license": "MIT"
+}

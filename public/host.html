@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SE Quiz Arena | Host Presentation</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/host.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖥️</text></svg>">
+</head>
+<body class="host-body">
+
+  <!-- Ambient Cinematic Aurora Glows & Floating Particles -->
+  <div class="aurora-bg" aria-hidden="true">
+    <div class="aurora-glow aurora-glow-1"></div>
+    <div class="aurora-glow aurora-glow-2"></div>
+    <div class="aurora-glow aurora-glow-3"></div>
+    <!-- Ambient Cinematic Studio Lighting (No cheesy AI floating shapes) -->
+    <div class="aurora-glow aurora-glow-1"></div>
+    <div class="aurora-glow aurora-glow-2"></div>
+    <div class="aurora-glow aurora-glow-3"></div>
+  </div>
+
+  <div class="host-fullscreen-container">
+
+    <!-- Top Host Header -->
+    <header class="host-header">
+      <div class="host-brand">
+        <span class="host-brand-icon">⚡</span>
+        <div>
+          <h1 class="host-brand-title">SOFTWARE ENGINEERING QUIZ ARENA</h1>
+          <p class="host-brand-sub">Live Arena • 50 Questions</p>
+        </div>
+      </div>
+
+      <!-- Centered Massive PIN -->
+      <div class="host-pin-banner" id="host-pin-container">
+        <span class="host-pin-tag">GAME PIN:</span>
+        <span class="host-pin-digits" id="host-pin-val">------</span>
+      </div>
+
+      <!-- Controls -->
+      <div class="host-actions">
+        <button class="action-btn theme-toggle-btn" id="theme-toggle-btn" title="Toggle Light/Dark Theme" onclick="toggleTheme()">
+          <span id="theme-toggle-icon">☀️</span> <span id="theme-toggle-text">Light</span>
+        </button>
+        <button class="action-btn" id="btn-sound-toggle" title="Toggle Sound / Music" onclick="toggleSound()">
+          🔊
+        </button>
+        <button class="action-btn" id="btn-fullscreen" title="Toggle Fullscreen" onclick="toggleFullscreen()">
+          ⛶ Fullscreen
+        </button>
+      </div>
+    </header>
+
+    <!-- HOST VIEW 1: LOBBY (ULTRA-CLEAN ARENA) -->
+    <main id="host-screen-lobby" class="host-view active">
+      <div class="lab-lobby-layout clean-full-arena">
+        
+        <!-- Clean Full-Width Students Arena -->
+        <div class="students-arena-card full-width-card">
+          <div class="arena-header-row">
+            <div class="counter-badge">
+              <span class="badge-icon">👥</span>
+              <span class="badge-count" id="host-player-count">0</span>
+              <span class="badge-label">Students Connected</span>
+            </div>
+
+            <!-- Clean, Direct Start Quiz Button -->
+            <button id="btn-host-start" class="btn-launch-game header-start-btn" onclick="hostStartGame()" title="Start Quiz">
+              <span class="btn-launch-text">Start Quiz</span>
+              <span class="btn-launch-arrow">➔</span>
+            </button>
+          </div>
+
+          <!-- Live Student Chips Grid (Clean, responsive layout for 70+ names) -->
+          <div class="students-grid" id="host-player-grid">
+            <div id="lobby-empty-placeholder" class="empty-arena-state">
+              <div class="empty-icon">💻</div>
+              <h3>Waiting for students to join...</h3>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- HOST VIEW 2: COUNTDOWN -->
+    <main id="host-screen-countdown" class="host-view" style="display: none;">
+      <div class="countdown-hero-card">
+        <div class="countdown-num-big" id="host-countdown-num">3</div>
+        <div class="countdown-unit-badge" id="host-countdown-unit-pill">UNIT I – Software Process Models</div>
+        <h2 class="countdown-preview-q" id="host-countdown-preview-title">Software Engineering</h2>
+        <div class="countdown-pill" id="host-countdown-qnum">Question 1 of 50</div>
+      </div>
+    </main>
+
+    <!-- HOST VIEW 3: QUESTION PRESENTATION -->
+    <main id="host-screen-question" class="host-view" style="display: none;">
+      <div class="question-presenter-layout">
+        
+        <!-- Question Meta & Live Answers Bar -->
+        <div class="q-presenter-topbar">
+          <div class="q-meta-badges">
+            <div class="q-index-badge" id="host-q-index-pill">Question 1 of 50</div>
+            <div class="q-unit-badge" id="host-q-unit-pill">UNIT I – Software Process Models</div>
+          </div>
+          
+          <div class="q-presenter-right-actions">
+            <div class="live-answers-meter">
+              <span class="meter-icon">👥</span>
+              <strong id="host-answered-count">0</strong>
+              <span class="meter-divider">/</span>
+              <span id="host-total-players-count">0</span>
+              <span class="meter-label">Students Answered</span>
+            </div>
+            <button class="btn-skip-timer" onclick="hostEndQuestionNow()" title="Skip Timer (or press Space / Enter)">
+              <span>Skip Timer ➔</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Giant Clean Question Banner with Circular Timer -->
+        <div class="q-central-banner">
+          <h2 class="q-main-text" id="host-question-title">
+            Question text will load here...
+          </h2>
+          
+          <div class="timer-dial-container">
+            <svg class="timer-dial-svg" viewBox="0 0 100 100">
+              <circle class="timer-dial-bg" cx="50" cy="50" r="44" />
+              <circle class="timer-dial-progress" id="host-timer-bar" cx="50" cy="50" r="44" />
+            </svg>
+            <div class="timer-dial-digits" id="host-timer-num">20</div>
+          </div>
+        </div>
+
+        <!-- 4 Wide Option Cards (A, B, C, D) - NO SHAPES -->
+        <div class="host-pc-options-grid">
+          <div class="pc-option-card opt-a" id="host-opt-0">
+            <div class="opt-key-tag">A</div>
+            <div class="opt-label-text" id="host-opt-text-0">Option A</div>
+          </div>
+          <div class="pc-option-card opt-b" id="host-opt-1">
+            <div class="opt-key-tag">B</div>
+            <div class="opt-label-text" id="host-opt-text-1">Option B</div>
+          </div>
+          <div class="pc-option-card opt-c" id="host-opt-2">
+            <div class="opt-key-tag">C</div>
+            <div class="opt-label-text" id="host-opt-text-2">Option C</div>
+          </div>
+          <div class="pc-option-card opt-d" id="host-opt-3">
+            <div class="opt-key-tag">D</div>
+            <div class="opt-label-text" id="host-opt-text-3">Option D</div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- HOST VIEW 4: QUESTION RESULT & DISTRIBUTION (Question + Options Displayed) -->
+    <main id="host-screen-result" class="host-view" style="display: none;">
+      <div class="result-presenter-layout">
+        
+        <!-- Header with Question Meta & Auto-Advance Countdown Banner -->
+        <div class="result-top-row">
+          <div class="result-top-info">
+            <div class="q-meta-badges">
+              <div class="q-index-badge" id="host-result-q-pill">Question 1 of 50</div>
+              <div class="q-unit-badge" id="host-result-unit-pill">UNIT I – Software Process Models</div>
+            </div>
+            <h2 class="result-question-title" id="host-result-question-title">
+              Question text will load here...
+            </h2>
+          </div>
+
+          <div class="result-action-panel">
+            <button class="btn-next-action" onclick="hostNextAction()" title="Leaderboard (or press Space / Enter)">
+              <span class="btn-advance-text">Leaderboard ➔</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 Wide Option Cards with Text, Correct Highlight, and Vote Stats -->
+        <div class="host-result-options-grid">
+          <div class="result-option-card opt-a" id="result-opt-0">
+            <div class="result-opt-header">
+              <div class="opt-key-tag">A</div>
+              <div class="result-opt-text" id="result-opt-text-0">Option A</div>
+              <div class="result-correct-badge" id="result-badge-0">✓ Correct Answer</div>
+            </div>
+            <div class="result-opt-stats">
+              <div class="result-opt-bar-track">
+                <div class="result-opt-bar-fill fill-a" id="result-bar-0"></div>
+              </div>
+              <div class="result-opt-meta">
+                <span class="result-vote-count"><strong id="result-votes-0">0</strong> votes</span>
+                <span class="result-vote-pct" id="result-pct-0">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-option-card opt-b" id="result-opt-1">
+            <div class="result-opt-header">
+              <div class="opt-key-tag">B</div>
+              <div class="result-opt-text" id="result-opt-text-1">Option B</div>
+              <div class="result-correct-badge" id="result-badge-1">✓ Correct Answer</div>
+            </div>
+            <div class="result-opt-stats">
+              <div class="result-opt-bar-track">
+                <div class="result-opt-bar-fill fill-b" id="result-bar-1"></div>
+              </div>
+              <div class="result-opt-meta">
+                <span class="result-vote-count"><strong id="result-votes-1">0</strong> votes</span>
+                <span class="result-vote-pct" id="result-pct-1">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-option-card opt-c" id="result-opt-2">
+            <div class="result-opt-header">
+              <div class="opt-key-tag">C</div>
+              <div class="result-opt-text" id="result-opt-text-2">Option C</div>
+              <div class="result-correct-badge" id="result-badge-2">✓ Correct Answer</div>
+            </div>
+            <div class="result-opt-stats">
+              <div class="result-opt-bar-track">
+                <div class="result-opt-bar-fill fill-c" id="result-bar-2"></div>
+              </div>
+              <div class="result-opt-meta">
+                <span class="result-vote-count"><strong id="result-votes-2">0</strong> votes</span>
+                <span class="result-vote-pct" id="result-pct-2">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-option-card opt-d" id="result-opt-3">
+            <div class="result-opt-header">
+              <div class="opt-key-tag">D</div>
+              <div class="result-opt-text" id="result-opt-text-3">Option D</div>
+              <div class="result-correct-badge" id="result-badge-3">✓ Correct Answer</div>
+            </div>
+            <div class="result-opt-stats">
+              <div class="result-opt-bar-track">
+                <div class="result-opt-bar-fill fill-d" id="result-bar-3"></div>
+              </div>
+              <div class="result-opt-meta">
+                <span class="result-vote-count"><strong id="result-votes-3">0</strong> votes</span>
+                <span class="result-vote-pct" id="result-pct-3">0%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Key Takeaway & Explanation Card -->
+        <div class="takeaway-card">
+          <div class="takeaway-badge">💡 Software Engineering Concept</div>
+          <div class="takeaway-body" id="host-result-explanation">Explanation loading...</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- HOST VIEW 5: LEADERBOARD (Top 10 Students Standings) -->
+    <main id="host-screen-leaderboard" class="host-view" style="display: none;">
+      <div class="leaderboard-presenter-layout">
+        
+        <!-- Top Row with Title & Actions -->
+        <div class="lb-top-row">
+          <div>
+            <div class="lb-header-badges">
+              <span class="lb-trophy-badge">🏆 OFFICIAL STANDINGS</span>
+              <span class="lb-sub-badge" id="host-lb-subtitle">Top 10 Students</span>
+            </div>
+            <h2 class="result-heading" style="margin-top: 0.35rem;">Live Leaderboard Standings</h2>
+          </div>
+
+          <div class="lb-actions-group">
+            <button class="btn-next-action" id="btn-host-lb-next" onclick="hostProceedFromLeaderboard()" title="Next Question (or press Space / Enter)">
+              <span class="btn-advance-text" id="lb-next-text">Next Question ➔</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Standings of Top 10 Students -->
+        <div class="host-pc-leaderboard-list" id="host-leaderboard-list">
+          <!-- Top 10 dynamic rows -->
+        </div>
+      </div>
+    </main>
+
+    <!-- HOST VIEW 6: GRAND FINALE PODIUM -->
+    <main id="host-screen-podium" class="host-view" style="display: none;">
+      <div class="podium-presenter-layout">
+        <div class="podium-headline">
+          <h2 class="podium-title">🎉 Quiz Champions! Top 10 Finalists</h2>
+          <p class="podium-sub">Outstanding performance across all 50 Software Engineering questions!</p>
+        </div>
+
+        <!-- 3D Clean Podium Steps -->
+        <div class="podium-display-row">
+          
+          <!-- 2nd Place -->
+          <div class="podium-tier tier-2">
+            <div class="tier-avatar" id="podium-2-avatar">🥈</div>
+            <div class="tier-name" id="podium-2-name">Student 2</div>
+            <div class="tier-score" id="podium-2-score">0 pts</div>
+            <div class="tier-pedestal pedestal-2">2nd</div>
+          </div>
+
+          <!-- 1st Place (Winner) -->
+          <div class="podium-tier tier-1">
+            <div class="tier-crown">👑</div>
+            <div class="tier-avatar" id="podium-1-avatar">🥇</div>
+            <div class="tier-name" id="podium-1-name">Champion</div>
+            <div class="tier-score" id="podium-1-score">0 pts</div>
+            <div class="tier-pedestal pedestal-1">1st</div>
+          </div>
+
+          <!-- 3rd Place -->
+          <div class="podium-tier tier-3">
+            <div class="tier-avatar" id="podium-3-avatar">🥉</div>
+            <div class="tier-name" id="podium-3-name">Student 3</div>
+            <div class="tier-score" id="podium-3-score">0 pts</div>
+            <div class="tier-pedestal pedestal-3">3rd</div>
+          </div>
+
+        </div>
+
+        <!-- Full Top 10 Summary Table -->
+        <div class="top10-summary-box">
+          <h3 class="top10-box-title">Official Top 10 Final Rankings</h3>
+          <div class="top10-scroll-list" id="podium-top10-table">
+            <!-- Full top 10 rows -->
+          </div>
+
+          <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 1.5rem;">
+            <button class="btn-launch-game" style="width: auto; padding: 0.85rem 2rem; background: #059669;" onclick="downloadResultsCSV()">
+              📥 Download Results (CSV)
+            </button>
+            <button class="btn-launch-game" style="width: auto; padding: 0.85rem 2rem;" onclick="clearHostSession(); window.location.reload();">
+              🔄 Start New Quiz Session
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Audio, Confetti & Interactive Click FX Scripts -->
+  <script src="js/avatars.js"></script>
+  <script src="js/sounds.js"></script>
+  <script src="js/confetti.js"></script>
+  <script src="js/cursorFx.js"></script>
+  <script src="js/host.js"></script>
+</body>
+</html>

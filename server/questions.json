@@ -1,0 +1,802 @@
+[
+  {
+    "id": 1,
+    "unit": "UNIT I – Software Process Models",
+    "difficulty": "Easy",
+    "question": "[UNIT I] Which software development model follows a strictly sequential approach?",
+    "options": [
+      "Spiral Model",
+      "Waterfall Model",
+      "Agile Model",
+      "Incremental Model"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "The Waterfall Model is a linear-sequential lifecycle model where each phase (requirements, design, implementation, verification, maintenance) must be completed before the next begins."
+  },
+  {
+    "id": 2,
+    "unit": "UNIT I – Software Process Models",
+    "difficulty": "Medium",
+    "question": "[UNIT I] Which model is most suitable when requirements are unclear and frequently changing?",
+    "options": [
+      "Waterfall Model",
+      "V-Model",
+      "Prototyping Model",
+      "Big Bang Model"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "The Prototyping Model creates early functional mockups for customer evaluation, making it ideal when initial user requirements are ambiguous or evolving."
+  },
+  {
+    "id": 3,
+    "unit": "UNIT I – Software Process Models",
+    "difficulty": "Easy",
+    "question": "[UNIT I] What is the primary objective of the Spiral Model?",
+    "options": [
+      "Manage and reduce risks",
+      "Reduce coding time",
+      "Eliminate documentation",
+      "Avoid customer involvement"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Formulated by Barry Boehm, the Spiral Model pairs iterative development with systematic risk analysis and management at every cycle."
+  },
+  {
+    "id": 4,
+    "unit": "UNIT I – Software Process Models",
+    "difficulty": "Medium",
+    "question": "[UNIT I] Which model emphasizes rapid development using reusable components and time-boxed delivery?",
+    "options": [
+      "Waterfall",
+      "Spiral",
+      "V-Model",
+      "RAD"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Rapid Application Development (RAD) focuses on rapid prototyping, reusable software components, and strict 60–90 day time-boxes over extensive upfront planning."
+  },
+  {
+    "id": 5,
+    "unit": "UNIT I – Software Process Models",
+    "difficulty": "Medium",
+    "question": "[UNIT I] What is the major advantage of the Incremental Model?",
+    "options": [
+      "No testing is required",
+      "Working software is delivered in increments",
+      "Entire software is delivered at once",
+      "Requirements cannot change"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "The Incremental Model breaks requirements into smaller builds, delivering partially completed, working software to users at the end of each increment."
+  },
+  {
+    "id": 6,
+    "unit": "UNIT I – Software Process Models",
+    "difficulty": "Hard",
+    "question": "[UNIT I] Which model extends the Spiral Model by incorporating stakeholder negotiations?",
+    "options": [
+      "Win-Win Spiral Model",
+      "Incremental Model",
+      "Evolutionary Model",
+      "Classical Waterfall Model"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 25,
+    "points": 1000,
+    "explanation": "The Win-Win Spiral Model integrates Theory W negotiation into the front of each spiral cycle to reconcile differing customer and developer objectives."
+  },
+  {
+    "id": 7,
+    "unit": "UNIT I – Software Process Models",
+    "difficulty": "Medium",
+    "question": "[UNIT I] What is the main difference between Classical Waterfall and Iterative Waterfall?",
+    "options": [
+      "Iterative Waterfall eliminates testing",
+      "Classical Waterfall supports continuous delivery",
+      "Iterative Waterfall allows feedback to earlier phases",
+      "Classical Waterfall uses Agile practices"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Unlike the strictly forward-only Classical Waterfall model, Iterative Waterfall incorporates feedback paths between adjacent phases to rectify defects discovered later."
+  },
+  {
+    "id": 8,
+    "unit": "UNIT I – Software Process Models",
+    "difficulty": "Hard",
+    "question": "[UNIT I] Which of the following is NOT a phase of the Rational Unified Process (RUP)?",
+    "options": [
+      "Inception",
+      "Elaboration",
+      "Construction",
+      "Maintenance"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 25,
+    "points": 1000,
+    "explanation": "The four phases of RUP are Inception, Elaboration, Construction, and Transition. Maintenance is not one of the standard RUP phases."
+  },
+  {
+    "id": 9,
+    "unit": "UNIT I – Software Process Models",
+    "difficulty": "Medium",
+    "question": "[UNIT I] Which development model is best suited for projects with high technical uncertainty and significant risks?",
+    "options": [
+      "Spiral Model",
+      "Classical Waterfall",
+      "Big Bang Model",
+      "Code-and-Fix Model"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "The Spiral Model explicitly incorporates risk assessment and risk mitigation phases at every spiral loop, making it ideal for high-risk, uncertain endeavors."
+  },
+  {
+    "id": 10,
+    "unit": "UNIT I – Software Process Models",
+    "difficulty": "Easy",
+    "question": "[UNIT I] Which of the following is a core characteristic of Agile development?",
+    "options": [
+      "Strictly fixed requirements",
+      "Continuous customer collaboration",
+      "No testing until completion",
+      "Minimal team communication"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "The Agile Manifesto explicitly prioritizes customer collaboration over contract negotiation, emphasizing frequent feedback loops and continuous collaboration."
+  },
+  {
+    "id": 11,
+    "unit": "UNIT II – Software Requirements Analysis and UML Design",
+    "difficulty": "Easy",
+    "question": "[UNIT II] Which requirement describes what a software system must do?",
+    "options": [
+      "Non-functional requirement",
+      "Performance constraint",
+      "Functional requirement",
+      "Quality attribute"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Functional requirements describe specific behaviors, services, functions, and data transformations that the software system must perform."
+  },
+  {
+    "id": 12,
+    "unit": "UNIT II – Software Requirements Analysis and UML Design",
+    "difficulty": "Easy",
+    "question": "[UNIT II] Which of the following is a non-functional requirement?",
+    "options": [
+      "User registration",
+      "Password reset",
+      "Generate invoice",
+      "Response time below 2 seconds"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Non-functional requirements specify quality criteria, operational constraints, and performance targets (such as response latency < 2s) rather than specific behaviors."
+  },
+  {
+    "id": 13,
+    "unit": "UNIT II – Software Requirements Analysis and UML Design",
+    "difficulty": "Medium",
+    "question": "[UNIT II] What is the primary purpose of a Software Requirements Specification (SRS)?",
+    "options": [
+      "Execute test cases",
+      "Document software requirements",
+      "Generate source code",
+      "Design database tables"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "An SRS provides a comprehensive, unambiguous description of intended system behavior, constraints, and external interfaces, acting as a baseline agreement."
+  },
+  {
+    "id": 14,
+    "unit": "UNIT II – Software Requirements Analysis and UML Design",
+    "difficulty": "Easy",
+    "question": "[UNIT II] Which UML diagram represents interactions between objects over time?",
+    "options": [
+      "Sequence Diagram",
+      "Class Diagram",
+      "Activity Diagram",
+      "Component Diagram"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "A Sequence Diagram is an interaction diagram that shows how objects communicate in a time sequence along vertical object lifelines."
+  },
+  {
+    "id": 15,
+    "unit": "UNIT II – Software Requirements Analysis and UML Design",
+    "difficulty": "Medium",
+    "question": "[UNIT II] Which UML diagram is used to represent an object's states and transitions?",
+    "options": [
+      "Use Case Diagram",
+      "Deployment Diagram",
+      "State Machine Diagram",
+      "Object Diagram"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "A State Machine Diagram (Statechart) models dynamic object behavior by capturing discrete states, events triggering transitions, and resultant actions."
+  },
+  {
+    "id": 16,
+    "unit": "UNIT II – Software Requirements Analysis and UML Design",
+    "difficulty": "Medium",
+    "question": "[UNIT II] Which UML diagram shows the physical deployment of software components on hardware nodes?",
+    "options": [
+      "Activity Diagram",
+      "Deployment Diagram",
+      "Class Diagram",
+      "Sequence Diagram"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "A Deployment Diagram illustrates the physical run-time architecture, showing processing nodes, execution environments, and deployed software artifacts."
+  },
+  {
+    "id": 17,
+    "unit": "UNIT II – Software Requirements Analysis and UML Design",
+    "difficulty": "Medium",
+    "question": "[UNIT II] Which software design principle promotes strong relationships within a module and minimal dependencies between modules?",
+    "options": [
+      "Low cohesion and high coupling",
+      "High cohesion and high coupling",
+      "Low cohesion and low coupling",
+      "High cohesion and low coupling"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "High cohesion ensures elements inside a module focus on a single well-defined task, while low coupling minimizes interdependencies to maximize maintainability."
+  },
+  {
+    "id": 18,
+    "unit": "UNIT II – Software Requirements Analysis and UML Design",
+    "difficulty": "Medium",
+    "question": "[UNIT II] In a Data Flow Diagram (DFD), which symbol traditionally represents a process?",
+    "options": [
+      "Circle or rounded rectangle",
+      "Arrow",
+      "Rectangle",
+      "Double parallel lines"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "In DFD notation (such as Yourdon/DeMarco or Gane/Sarson), processes that transform inputs into outputs are depicted as circles or rounded rectangles."
+  },
+  {
+    "id": 19,
+    "unit": "UNIT II – Software Requirements Analysis and UML Design",
+    "difficulty": "Easy",
+    "question": "[UNIT II] Which UML diagram represents the static structure of classes, attributes, methods, and relationships?",
+    "options": [
+      "Sequence Diagram",
+      "Activity Diagram",
+      "Class Diagram",
+      "State Machine Diagram"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "A Class Diagram is the foundation of object-oriented modeling, capturing classes, attributes, operations, and relationships like inheritance and association."
+  },
+  {
+    "id": 20,
+    "unit": "UNIT II – Software Requirements Analysis and UML Design",
+    "difficulty": "Medium",
+    "question": "[UNIT II] Which feasibility study determines whether a proposed software project is financially worthwhile?",
+    "options": [
+      "Technical feasibility",
+      "Operational feasibility",
+      "Schedule feasibility",
+      "Economic feasibility"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Economic feasibility evaluates the financial costs versus anticipated economic benefits and ROI to assess project commercial viability."
+  },
+  {
+    "id": 21,
+    "unit": "UNIT III – Software Project Management",
+    "difficulty": "Easy",
+    "question": "[UNIT III] What does KLOC represent in software cost estimation?",
+    "options": [
+      "Kernel Lines of Code",
+      "Thousand Lines of Code",
+      "Known Lines of Code",
+      "Key Level of Complexity"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "KLOC stands for Kilo (Thousand) Lines of Code, widely used as a size metric in algorithmic effort estimation models like COCOMO."
+  },
+  {
+    "id": 22,
+    "unit": "UNIT III – Software Project Management",
+    "difficulty": "Medium",
+    "question": "[UNIT III] Which estimation model uses software size and cost drivers to predict development effort?",
+    "options": [
+      "COCOMO",
+      "UML",
+      "Scrum",
+      "DFD"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "The Constructive Cost Model (COCOMO), formulated by Barry Boehm, estimates person-months and development schedule based on size (KLOC) and cost drivers."
+  },
+  {
+    "id": 23,
+    "unit": "UNIT III – Software Project Management",
+    "difficulty": "Hard",
+    "question": "[UNIT III] Which of the following is NOT one of the five standard Function Point Analysis components?",
+    "options": [
+      "External Inputs",
+      "External Outputs",
+      "Internal Logical Files",
+      "Number of Developers"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 25,
+    "points": 1000,
+    "explanation": "The 5 standard FPA components are External Inputs (EI), External Outputs (EO), External Inquiries (EQ), Internal Logical Files (ILF), and External Interface Files (EIF)."
+  },
+  {
+    "id": 24,
+    "unit": "UNIT III – Software Project Management",
+    "difficulty": "Medium",
+    "question": "[UNIT III] Which technique estimates project effort using expert opinions collected over multiple rounds?",
+    "options": [
+      "Function Point Analysis",
+      "Delphi Method",
+      "Critical Path Method",
+      "Regression Testing"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "The Delphi Method gathers independent judgments from a panel of experts through iterative, anonymous questionnaires until consensus is reached."
+  },
+  {
+    "id": 25,
+    "unit": "UNIT III – Software Project Management",
+    "difficulty": "Easy",
+    "question": "[UNIT III] What is the highest maturity level in the Capability Maturity Model (CMM)?",
+    "options": [
+      "Defined",
+      "Managed",
+      "Optimizing",
+      "Repeatable"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "CMM defines 5 levels: 1. Initial, 2. Repeatable, 3. Defined, 4. Managed, and 5. Optimizing (where continuous process improvement is quantitatively driven)."
+  },
+  {
+    "id": 26,
+    "unit": "UNIT III – Software Project Management",
+    "difficulty": "Medium",
+    "question": "[UNIT III] Which project management technique identifies the longest sequence of dependent activities?",
+    "options": [
+      "Critical Path Method",
+      "Function Point Analysis",
+      "COCOMO",
+      "Scrum Retrospective"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "The Critical Path Method (CPM) identifies the longest path of dependent tasks; tasks on this path have zero slack, so any delay delays the entire project."
+  },
+  {
+    "id": 27,
+    "unit": "UNIT III – Software Project Management",
+    "difficulty": "Medium",
+    "question": "[UNIT III] What is the primary objective of Software Configuration Management (SCM)?",
+    "options": [
+      "Increase coding speed",
+      "Control and track changes to software artifacts",
+      "Eliminate software testing",
+      "Reduce customer feedback"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "SCM maintains the integrity and traceability of evolving software products across versioning, change control, build management, and releases."
+  },
+  {
+    "id": 28,
+    "unit": "UNIT III – Software Project Management",
+    "difficulty": "Medium",
+    "question": "[UNIT III] Which of the following is an example of a product metric?",
+    "options": [
+      "Team meeting duration",
+      "Employee attendance",
+      "Sprint planning time",
+      "Defect density"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Product metrics evaluate properties of the software deliverable itself (e.g. defect density, cyclomatic complexity), unlike process or project resource metrics."
+  },
+  {
+    "id": 29,
+    "unit": "UNIT III – Software Project Management",
+    "difficulty": "Easy",
+    "question": "[UNIT III] What is the main purpose of risk management in software projects?",
+    "options": [
+      "Eliminate project documentation",
+      "Avoid all project changes",
+      "Identify, analyze, and respond to potential risks",
+      "Increase project complexity"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Risk management proactively identifies potential hazards, assesses their probability and impact, and devises mitigation strategies and contingencies."
+  },
+  {
+    "id": 30,
+    "unit": "UNIT III – Software Project Management",
+    "difficulty": "Hard",
+    "question": "[UNIT III] Which COCOMO II submodel is particularly suitable for estimating effort after the software architecture has been established?",
+    "options": [
+      "Post-Architecture Model",
+      "Application Composition Model",
+      "Early Design Model",
+      "Basic COCOMO Model"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 25,
+    "points": 1000,
+    "explanation": "In COCOMO II, the Post-Architecture Model is the most comprehensive estimation model, applied once the software architecture is formulated."
+  },
+  {
+    "id": 31,
+    "unit": "UNIT IV – Software Testing",
+    "difficulty": "Easy",
+    "question": "[UNIT IV] Which testing technique examines the internal structure and logic of source code?",
+    "options": [
+      "Black Box Testing",
+      "White Box Testing",
+      "Beta Testing",
+      "Acceptance Testing"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "White Box Testing (or Structural/Glass-Box Testing) analyzes code logic, control flows, branches, conditions, and statements."
+  },
+  {
+    "id": 32,
+    "unit": "UNIT IV – Software Testing",
+    "difficulty": "Easy",
+    "question": "[UNIT IV] Which testing technique evaluates software functionality without examining its internal implementation?",
+    "options": [
+      "White Box Testing",
+      "Control Flow Testing",
+      "Black Box Testing",
+      "Statement Coverage Testing"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Black Box Testing evaluates functionality against specified requirements strictly by providing inputs and verifying outputs without inspecting source code."
+  },
+  {
+    "id": 33,
+    "unit": "UNIT IV – Software Testing",
+    "difficulty": "Easy",
+    "question": "[UNIT IV] Which testing method verifies that recent code changes have not broken existing functionality?",
+    "options": [
+      "Regression Testing",
+      "Alpha Testing",
+      "Mutation Testing",
+      "Stress Testing"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Regression Testing re-executes tests against an updated build to confirm that modifications, bug fixes, or enhancements have not degraded existing features."
+  },
+  {
+    "id": 34,
+    "unit": "UNIT IV – Software Testing",
+    "difficulty": "Hard",
+    "question": "[UNIT IV] What does 100% statement coverage guarantee?",
+    "options": [
+      "All possible execution paths are tested",
+      "All software defects are detected",
+      "Every decision outcome has been tested",
+      "Every executable statement has been executed at least once"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 25,
+    "points": 1000,
+    "explanation": "100% statement coverage means every single line/statement was run during test execution; however, it does not guarantee all logical branches or edge cases are covered."
+  },
+  {
+    "id": 35,
+    "unit": "UNIT IV – Software Testing",
+    "difficulty": "Hard",
+    "question": "[UNIT IV] Which testing technique introduces small changes into source code to evaluate the effectiveness of test cases?",
+    "options": [
+      "Monkey Testing",
+      "Mutation Testing",
+      "Load Testing",
+      "Usability Testing"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 25,
+    "points": 1000,
+    "explanation": "Mutation Testing inserts deliberate syntactic faults (mutants) into the source code to assess whether the test suite detects ('kills') them."
+  },
+  {
+    "id": 36,
+    "unit": "UNIT IV – Software Testing",
+    "difficulty": "Medium",
+    "question": "[UNIT IV] Which testing technique is used to verify system behavior under workloads beyond normal operating capacity?",
+    "options": [
+      "Unit Testing",
+      "Alpha Testing",
+      "Stress Testing",
+      "Compatibility Testing"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Stress Testing pushes software beyond standard resource limits to observe error handling, robustness, and graceful recovery under extreme load."
+  },
+  {
+    "id": 37,
+    "unit": "UNIT IV – Software Testing",
+    "difficulty": "Hard",
+    "question": "[UNIT IV] Which black-box testing technique systematically tests combinations of input parameter values so that every pair is covered?",
+    "options": [
+      "Statement Coverage",
+      "Branch Coverage",
+      "Control Flow Testing",
+      "All-Pair Testing"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 25,
+    "points": 1000,
+    "explanation": "All-Pair (or Pairwise) Testing is a combinatorial black-box test technique testing all possible pairs of parameter values, which detects the majority of integration bugs."
+  },
+  {
+    "id": 38,
+    "unit": "UNIT IV – Software Testing",
+    "difficulty": "Medium",
+    "question": "[UNIT IV] Which testing type is typically performed by selected external users before general release?",
+    "options": [
+      "Beta Testing",
+      "Unit Testing",
+      "Alpha Testing",
+      "Integration Testing"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Beta Testing is conducted by external end-users in real operating environments to uncover real-world issues prior to commercial release."
+  },
+  {
+    "id": 39,
+    "unit": "UNIT IV – Software Testing",
+    "difficulty": "Easy",
+    "question": "[UNIT IV] Which testing technique checks whether a system can recover after crashes or failures?",
+    "options": [
+      "GUI Testing",
+      "Recovery Testing",
+      "Volume Testing",
+      "Compatibility Testing"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Recovery Testing tests a system's ability to withstand and recover from software faults, network drops, or hardware crashes back to an operational state."
+  },
+  {
+    "id": 40,
+    "unit": "UNIT IV – Software Testing",
+    "difficulty": "Medium",
+    "question": "[UNIT IV] What is the primary purpose of integration testing?",
+    "options": [
+      "Test individual functions in isolation",
+      "Evaluate software usability",
+      "Verify interactions between integrated modules",
+      "Measure server capacity"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Integration Testing verifies communication, interface compatibility, and data flow between interconnected software modules."
+  },
+  {
+    "id": 41,
+    "unit": "UNIT V – Agile and Scrum",
+    "difficulty": "Easy",
+    "question": "[UNIT V] Which statement best represents a value of the Agile Manifesto?",
+    "options": [
+      "Customer collaboration over contract negotiation",
+      "Processes and tools over individuals and interactions",
+      "Comprehensive documentation over working software",
+      "Following a plan over responding to change"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "The Agile Manifesto states: 'Customer collaboration over contract negotiation' as one of its four foundational values."
+  },
+  {
+    "id": 42,
+    "unit": "UNIT V – Agile and Scrum",
+    "difficulty": "Medium",
+    "question": "[UNIT V] Which Agile methodology emphasizes pair programming, continuous integration, and test-driven development?",
+    "options": [
+      "Waterfall",
+      "Extreme Programming (XP)",
+      "Spiral",
+      "RAD"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Extreme Programming (XP), formulated by Kent Beck, champions strict engineering practices like Pair Programming, TDD, and Continuous Integration."
+  },
+  {
+    "id": 43,
+    "unit": "UNIT V – Agile and Scrum",
+    "difficulty": "Medium",
+    "question": "[UNIT V] In Test-Driven Development (TDD), what is the correct sequence?",
+    "options": [
+      "Code → Test → Deploy",
+      "Design → Deploy → Test",
+      "Red → Green → Refactor",
+      "Refactor → Deploy → Test"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "TDD follows the Red-Green-Refactor cycle: Red (write a failing test), Green (write minimum code to pass), Refactor (clean and optimize code while keeping tests green)."
+  },
+  {
+    "id": 44,
+    "unit": "UNIT V – Agile and Scrum",
+    "difficulty": "Easy",
+    "question": "[UNIT V] Who is primarily accountable for maximizing product value and managing the Product Backlog in Scrum?",
+    "options": [
+      "Scrum Master",
+      "Project Manager",
+      "Software Tester",
+      "Product Owner"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "According to the Scrum Guide, the Product Owner is solely accountable for maximizing the value of the product and effectively managing the Product Backlog."
+  },
+  {
+    "id": 45,
+    "unit": "UNIT V – Agile and Scrum",
+    "difficulty": "Medium",
+    "question": "[UNIT V] What is the maximum duration of a Sprint according to the Scrum Guide?",
+    "options": [
+      "One month",
+      "One week",
+      "Two weeks",
+      "Three months"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "The Scrum Guide defines Sprints as fixed-length events of one month or less to maintain focus, rhythm, and regular stakeholder feedback."
+  },
+  {
+    "id": 46,
+    "unit": "UNIT V – Agile and Scrum",
+    "difficulty": "Medium",
+    "question": "[UNIT V] Which Scrum event is used to inspect the team's processes and plan improvements?",
+    "options": [
+      "Sprint Planning",
+      "Daily Scrum",
+      "Sprint Review",
+      "Sprint Retrospective"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "The Sprint Retrospective occurs at the end of each Sprint for the Scrum Team to inspect how individuals, interactions, and tools worked and identify improvements."
+  },
+  {
+    "id": 47,
+    "unit": "UNIT V – Agile and Scrum",
+    "difficulty": "Medium",
+    "question": "[UNIT V] What is the primary objective of Continuous Integration (CI)?",
+    "options": [
+      "Eliminate code reviews",
+      "Frequently integrate and automatically verify code changes",
+      "Avoid automated testing",
+      "Release software only once"
+    ],
+    "correctIndex": 1,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Continuous Integration encourages developers to merge code changes frequently into a central repository where automated builds and tests verify the changes."
+  },
+  {
+    "id": 48,
+    "unit": "UNIT V – Agile and Scrum",
+    "difficulty": "Easy",
+    "question": "[UNIT V] Which Agile practice involves two developers working together at one workstation?",
+    "options": [
+      "Refactoring",
+      "Sprint Planning",
+      "Pair Programming",
+      "Continuous Deployment"
+    ],
+    "correctIndex": 2,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Pair Programming pairs two engineers at one workstation: one (the Driver) writes code while the other (the Navigator) reviews code and thinks strategically."
+  },
+  {
+    "id": 49,
+    "unit": "UNIT V – Agile and Scrum",
+    "difficulty": "Medium",
+    "question": "[UNIT V] Which Lean Software Development principle focuses on removing activities that do not add customer value?",
+    "options": [
+      "Eliminate Waste",
+      "Increase Documentation",
+      "Delay Testing",
+      "Maximize Work in Progress"
+    ],
+    "correctIndex": 0,
+    "timeLimit": 20,
+    "points": 1000,
+    "explanation": "Eliminate Waste is the cornerstone of Lean philosophy: identifying and eliminating anything that does not directly deliver value to the end customer."
+  },
+  {
+    "id": 50,
+    "unit": "UNIT V – Agile and Scrum",
+    "difficulty": "Hard",
+    "question": "[UNIT V] Which of the following is NOT one of the five Scrum values?",
+    "options": [
+      "Commitment",
+      "Courage",
+      "Respect",
+      "Transparency"
+    ],
+    "correctIndex": 3,
+    "timeLimit": 25,
+    "points": 1000,
+    "explanation": "The 5 official Scrum values are Commitment, Courage, Focus, Openness, and Respect. Transparency is an empirical Scrum pillar, not one of the five values."
+  }
+]
