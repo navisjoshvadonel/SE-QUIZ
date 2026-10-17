@@ -12,12 +12,18 @@ class SoundEngine {
   }
 
   init() {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new AudioCtx();
-    }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+    try {
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          this.ctx = new AudioCtx();
+        }
+      }
+      if (this.ctx && this.ctx.state === 'suspended' && typeof this.ctx.resume === 'function') {
+        this.ctx.resume().catch(() => {});
+      }
+    } catch (e) {
+      this.ctx = null;
     }
   }
 

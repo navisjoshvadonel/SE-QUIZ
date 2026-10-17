@@ -480,6 +480,7 @@ class GameManager {
     room.questionStartTime = Date.now();
     room.remainingMs = room.timeLimit * 1000;
     room.isPaused = false;
+    room.isResolvingAllAnswered = false;
     room.answers.clear();
 
     const payload = {
@@ -719,10 +720,11 @@ class GameManager {
   }
 
   checkAllAnswered(room) {
-    if (room.state !== 'QUESTION') return;
+    if (room.state !== 'QUESTION' || room.isResolvingAllAnswered) return;
     const connectedPlayers = Array.from(room.players.values()).filter(p => p.isConnected);
     const activeCount = connectedPlayers.length;
     if (activeCount > 0 && room.answers.size >= activeCount) {
+      room.isResolvingAllAnswered = true;
       if (room.questionTimer) clearTimeout(room.questionTimer);
       // Give 1.5-second suspense countdown so answer isn't abruptly flashed
       this.broadcastToRoom(room, 'all_answered_countdown', {
@@ -739,6 +741,7 @@ class GameManager {
   resolveQuestion(room) {
     if (room.state !== 'QUESTION') return;
     room.state = 'RESULT';
+    room.isResolvingAllAnswered = false;
     if (room.questionTimer) clearTimeout(room.questionTimer);
     if (room.allAnsweredTimeout) clearTimeout(room.allAnsweredTimeout);
 
@@ -895,8 +898,18 @@ class GameManager {
 
   endGame(room) {
     room.state = 'GAME_OVER';
+    room.isResolvingAllAnswered = false;
     if (room.questionTimer) clearTimeout(room.questionTimer);
-    if (room.countdownTimer) clearTimeout(room.countdownTimer);
+    if (room.countdownTimer) clearInterval(room.countdownTimer);
+    if (room.allAnsweredTimeout) clearTimeout(room.allAnsweredTimeout);
+    if (room.studentProgressTimer) clearTimeout(room.studentProgressTimer);
+    if (room.lobbyStudentThrottleTimer) clearTimeout(room.lobbyStudentThrottleTimer);
+    if (room.disconnectTimers) {
+      for (const t of room.disconnectTimers.values()) {
+        clearTimeout(t);
+      }
+      room.disconnectTimers.clear();
+    }
 
     const sorted = this.getSortedLeaderboard(room);
 

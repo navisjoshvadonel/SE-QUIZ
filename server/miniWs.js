@@ -47,21 +47,38 @@ class WebSocketConnection extends EventEmitter {
 
   send(data) {
     if (this.socket.destroyed || !this.socket.writable) return;
-    const text = typeof data === 'string' ? data : JSON.stringify(data);
-    const frame = createWsTextFrame(text);
-    this.socket.write(frame);
+    try {
+      const text = typeof data === 'string' ? data : JSON.stringify(data);
+      const frame = createWsTextFrame(text);
+      this.socket.write(frame, () => {});
+    } catch (e) {}
   }
 
   sendFrame(frameBuffer) {
     if (this.socket.destroyed || !this.socket.writable) return;
-    this.socket.write(frameBuffer);
+    try {
+      this.socket.write(frameBuffer, () => {});
+    } catch (e) {}
   }
 
   close() {
     if (!this.socket.destroyed) {
-      this.socket.write(Buffer.from([0x88, 0x00]));
-      this.socket.end();
+      try {
+        this.socket.write(Buffer.from([0x88, 0x00]), () => {
+          this.socket.end();
+        });
+      } catch (e) {
+        this.socket.destroy();
+      }
     }
+  }
+
+  terminate() {
+    this.isAlive = false;
+    try {
+      this.socket.destroy();
+    } catch (e) {}
+    this.emit('close');
   }
 
   _onData(chunk) {
@@ -120,8 +137,14 @@ class WebSocketConnection extends EventEmitter {
       } else if (opcode === 0x09) {
         // Ping -> respond Pong
         if (!this.socket.destroyed) {
-          this.socket.write(Buffer.from([0x8A, 0x00]));
+          try {
+            this.socket.write(Buffer.from([0x8A, 0x00]), () => {});
+          } catch (e) {}
         }
+      } else if (opcode === 0x0A) {
+        // Pong received from client (browser response to server heartbeat ping)
+        this.isAlive = true;
+        this.emit('pong');
       }
     }
   }
@@ -144,6 +167,12 @@ class WebSocketServer extends EventEmitter {
         socket.destroy();
         return;
       }
+
+      // Disable TCP packet delay (Nagle's algorithm) and enable keep-alive
+      try {
+        socket.setNoDelay(true);
+        socket.setKeepAlive(true, 15000);
+      } catch (e) {}
 
       const acceptKey = crypto
         .createHash('sha1')

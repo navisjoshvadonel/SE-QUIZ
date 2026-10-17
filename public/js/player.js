@@ -814,9 +814,9 @@ function chooseOption(index) {
   // Channel 1: Fast WebSocket dispatch
   sendEvent('submit_answer', payload);
 
-  // Channel 2: Guaranteed REST fallback if socket is down or if no ack arrives within 350ms
+  // Channel 2: Guaranteed REST fallback if socket is down or if no ack arrives within 1500ms
   const isWsOpen = ws && ws.readyState === WebSocket.OPEN;
-  const fallbackDelay = isWsOpen ? 350 : 0;
+  const fallbackDelay = isWsOpen ? 1500 : 0;
 
   if (window._lastRestFallbackTimeout) clearTimeout(window._lastRestFallbackTimeout);
   window._lastRestFallbackTimeout = setTimeout(() => {

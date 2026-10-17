@@ -136,9 +136,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  const MAX_POST_BYTES = 65536; // 64 KB safety cap
+
   if (pathname === '/api/host/login' && req.method === 'POST') {
     let body = '';
-    req.on('data', chunk => { body += chunk; });
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > MAX_POST_BYTES) {
+        req.destroy();
+      }
+    });
     req.on('end', () => {
       try {
         const { password } = JSON.parse(body || '{}');
@@ -161,7 +168,12 @@ const server = http.createServer((req, res) => {
 
   if (pathname === '/api/submit_answer' && req.method === 'POST') {
     let body = '';
-    req.on('data', chunk => { body += chunk; });
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > MAX_POST_BYTES) {
+        req.destroy();
+      }
+    });
     req.on('end', () => {
       try {
         const data = JSON.parse(body || '{}');
@@ -459,16 +471,30 @@ wss.on('connection', (client) => {
   });
 });
 
-// Keep-alive heartbeat to maintain 60+ active school lab connections
+// Active keep-alive heartbeat with dead/stale socket pruning
 setInterval(() => {
   for (const client of wss.clients) {
+    if (client.isAlive === false) {
+      // Dead socket that failed to respond with Pong before next cycle
+      if (typeof client.terminate === 'function') {
+        client.terminate();
+      } else {
+        client.close();
+      }
+      wss.clients.delete(client);
+      continue;
+    }
+    client.isAlive = false;
     if (client.socket && !client.socket.destroyed && client.socket.writable) {
       try {
-        client.socket.write(Buffer.from([0x89, 0x00])); // WS Ping frame
-      } catch (e) {}
+        client.socket.write(Buffer.from([0x89, 0x00]), () => {}); // WS Ping frame
+      } catch (e) {
+        if (typeof client.terminate === 'function') client.terminate();
+        else client.close();
+      }
     }
   }
-}, 20000);
+}, 25000);
 
 // Start Server
 server.listen(PORT, '0.0.0.0', () => {
