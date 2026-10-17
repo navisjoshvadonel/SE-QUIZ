@@ -1,5 +1,8 @@
 # ⚡ SE Quiz Arena (Kahoot-Style Real-Time Multiplayer Quiz)
 
+> **🚀 Live Production App**: [https://se-quiz.up.railway.app/](https://se-quiz.up.railway.app/)  
+> **🖥️ Live Host Dashboard**: [https://se-quiz.up.railway.app/host](https://se-quiz.up.railway.app/host) *(Default Host Password: `njnjnj`)*
+
 A full-stack, real-time multiplayer quiz game engineered for **70+ concurrent players** with zero lag. Featuring a light mode aesthetic, procedural Web Audio sound synthesis, dynamic QR code room joining, live lobby, Kahoot-style speed score calculation with streak multipliers, between-question leaderboards, and an animated Grand Finale 3D podium celebrating the **Top 10**!
 
 ---
@@ -93,12 +96,11 @@ When the server boots, it detects and logs your local LAN IP (e.g., `http://192.
    - **Start Command**: `node server/server.js`
 5. Click **Deploy Web Service**! Render will give you a live public HTTPS/WSS URL (e.g., `https://se-quiz.onrender.com`).
 
-### Option 2: Railway.app / Fly.io / Docker
-This repository includes a production [`Dockerfile`](file:///d:/SE%20QUIZ/Dockerfile):
-```bash
-docker build -t se-quiz .
-docker run -p 3000:3000 se-quiz
-```
+### Option 2: Railway.app (Currently Live!)
+- **Live URL**: [https://se-quiz.up.railway.app/](https://se-quiz.up.railway.app/)
+- **Host View**: [https://se-quiz.up.railway.app/host](https://se-quiz.up.railway.app/host)
+- Automatically deploys from GitHub repository `navisjoshvadonel/SE-QUIZ` upon pushing to `main`.
+- Configuration: [`railway.json`](file:///d:/SE%20QUIZ/railway.json) & [`Dockerfile`](file:///d:/SE%20QUIZ/Dockerfile).
 
 ---
 
