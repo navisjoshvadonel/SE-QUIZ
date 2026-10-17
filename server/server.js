@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const { WebSocketServer } = require('./miniWs');
 const GameManager = require('./gameManager');
 
@@ -35,6 +36,59 @@ function getLocalIp() {
   }
   return 'localhost';
 }
+
+// In-Memory Static Asset Cache (Pre-loads all static files into RAM for 60+ concurrent students)
+const staticCache = new Map();
+const PUBLIC_DIR = path.resolve(__dirname, '../public');
+
+function loadStaticCache() {
+  function scanDir(dir) {
+    if (!fs.existsSync(dir)) return;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        scanDir(fullPath);
+      } else if (entry.isFile()) {
+        const relPath = path.relative(PUBLIC_DIR, fullPath).replace(/\\/g, '/');
+        const urlPath = '/' + relPath;
+        const buffer = fs.readFileSync(fullPath);
+        const ext = path.extname(fullPath).toLowerCase();
+        const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+        const etag = `"${crypto.createHash('md5').update(buffer).digest('hex')}"`;
+
+        let gzipBuffer = null;
+        if (['.html', '.css', '.js', '.json', '.svg'].includes(ext)) {
+          try {
+            gzipBuffer = zlib.gzipSync(buffer);
+          } catch (e) {}
+        }
+
+        const entryData = {
+          buffer,
+          gzipBuffer,
+          contentType,
+          etag,
+          ext
+        };
+
+        staticCache.set(urlPath, entryData);
+
+        // Aliases for default root and host
+        if (urlPath === '/index.html') {
+          staticCache.set('/', entryData);
+        } else if (urlPath === '/host.html') {
+          staticCache.set('/host', entryData);
+        }
+      }
+    }
+  }
+
+  scanDir(PUBLIC_DIR);
+}
+
+// Pre-load all assets into memory at startup
+loadStaticCache();
 
 // HTTP Server
 const server = http.createServer((req, res) => {
@@ -137,33 +191,70 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Static File Serving
-  let filePath = '';
-  if (pathname === '/' || pathname === '/index.html') {
-    filePath = path.join(__dirname, '../public/index.html');
-  } else if (pathname === '/host' || pathname === '/host.html') {
-    filePath = path.join(__dirname, '../public/host.html');
-  } else {
-    filePath = path.join(__dirname, '../public', pathname);
-  }
+  // Static File Serving (Sub-millisecond delivery from In-Memory RAM Cache with ETag & Gzip)
+  let targetPath = pathname;
+  if (targetPath === '' || targetPath === '/') targetPath = '/';
+  else if (targetPath === '/host') targetPath = '/host';
 
-  fs.stat(filePath, (err, stats) => {
-    if (err || !stats.isFile()) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('404 Not Found');
+  const cached = staticCache.get(targetPath);
+  if (cached) {
+    const isHtml = cached.ext === '.html';
+    const cacheControl = isHtml ? 'no-cache' : 'public, max-age=3600';
+    const clientEtag = req.headers['if-none-match'];
+
+    // HTTP 304 Not Modified conditional validation
+    if (clientEtag && clientEtag === cached.etag) {
+      res.writeHead(304, {
+        'ETag': cached.etag,
+        'Cache-Control': cacheControl
+      });
+      res.end();
       return;
     }
 
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const acceptEncoding = req.headers['accept-encoding'] || '';
+    if (cached.gzipBuffer && acceptEncoding.includes('gzip')) {
+      res.writeHead(200, {
+        'Content-Type': cached.contentType,
+        'Content-Encoding': 'gzip',
+        'Content-Length': cached.gzipBuffer.length,
+        'ETag': cached.etag,
+        'Cache-Control': cacheControl,
+        'Vary': 'Accept-Encoding'
+      });
+      if (req.method === 'HEAD') {
+        res.end();
+      } else {
+        res.end(cached.gzipBuffer);
+      }
+    } else {
+      res.writeHead(200, {
+        'Content-Type': cached.contentType,
+        'Content-Length': cached.buffer.length,
+        'ETag': cached.etag,
+        'Cache-Control': cacheControl
+      });
+      if (req.method === 'HEAD') {
+        res.end();
+      } else {
+        res.end(cached.buffer);
+      }
+    }
+    return;
+  }
 
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+  // Safe fallback if a file was added dynamically after server boot
+  const safePath = path.normalize(path.join(PUBLIC_DIR, pathname));
+  if (safePath.startsWith(PUBLIC_DIR) && fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
+    const ext = path.extname(safePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     res.writeHead(200, { 'Content-Type': contentType });
-    const stream = fs.createReadStream(filePath);
-    stream.pipe(res);
-  });
+    fs.createReadStream(safePath).pipe(res);
+    return;
+  }
+
+  res.writeHead(404, { 'Content-Type': 'text/plain' });
+  res.end('404 Not Found');
 });
 
 // WebSocket Server
@@ -388,6 +479,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🖥️ Host Big Screen View:     http://localhost:${PORT}/host`);
   console.log(`🌐 Local Lab Wi-Fi Join:     http://${localIp}:${PORT}/`);
   console.log(`📡 Local Lab Wi-Fi Host:     http://${localIp}:${PORT}/host`);
+  console.log(`⚡ In-Memory Cache:          ${staticCache.size} static routes cached in RAM for 60+ student concurrency`);
   console.log('========================================================\n');
 });
 
