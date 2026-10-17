@@ -12,8 +12,16 @@
   canvas.style.width = '100vw';
   canvas.style.height = '100vh';
   canvas.style.pointerEvents = 'none';
-  canvas.style.zIndex = '99999';
-  document.body.appendChild(canvas);
+  function attachCanvas() {
+    if (document.body && !document.getElementById('fx-canvas')) {
+      document.body.appendChild(canvas);
+    }
+  }
+  if (document.body) {
+    attachCanvas();
+  } else {
+    document.addEventListener('DOMContentLoaded', attachCanvas);
+  }
 
   const ctx = canvas.getContext('2d');
   let width = (canvas.width = window.innerWidth);

@@ -58,7 +58,19 @@ class GameManager {
     };
 
     this.rooms.set(pin, room);
+    console.log(`🔑 [GameManager] Room created with Game PIN / Code: [ ${pin} ]`);
     return room;
+  }
+
+  getLatestRoom() {
+    if (this.rooms.size === 0) return null;
+    let latest = null;
+    for (const r of this.rooms.values()) {
+      if (!latest || (r.createdAt && r.createdAt > latest.createdAt)) {
+        latest = r;
+      }
+    }
+    return latest;
   }
 
   getRoom(pin) {

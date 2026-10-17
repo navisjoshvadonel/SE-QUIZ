@@ -123,6 +123,79 @@
   text-shadow: 0 0 12px rgba(165, 180, 252, 0.6);
 }
 
+/* Massive Lobby Join Hero Banner */
+.lobby-join-banner-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 2px solid rgba(99, 102, 241, 0.5);
+  border-radius: 20px;
+  padding: 1.25rem 2rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 25px rgba(99, 102, 241, 0.25);
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.lobby-join-instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.join-badge {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #818CF8;
+  text-transform: uppercase;
+}
+
+.join-action-line {
+  font-size: 1.3rem;
+  color: #F8FAFC;
+  font-weight: 700;
+}
+
+.join-url-highlight {
+  color: #38BDF8;
+  font-family: var(--font-code);
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  background: rgba(14, 165, 233, 0.15);
+  padding: 0.2rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.lobby-pin-hero-display {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: rgba(99, 102, 241, 0.15);
+  border: 2px solid #6366F1;
+  padding: 0.6rem 2rem;
+  border-radius: 16px;
+  box-shadow: 0 0 25px rgba(99, 102, 241, 0.4);
+}
+
+.lobby-pin-badge {
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #A5B4FC;
+}
+
+.lobby-pin-number {
+  font-family: var(--font-code);
+  font-size: 2.8rem;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  color: #FFFFFF;
+  text-shadow: 0 0 16px rgba(129, 140, 248, 0.8);
+}
+
 .host-actions {
   display: flex;
   align-items: center;
@@ -1802,6 +1875,27 @@
 }
 
 :root[data-theme="light"] .host-pin-digits {
+  color: #4F46E5;
+  text-shadow: none;
+}
+
+:root[data-theme="light"] .lobby-join-banner-hero {
+  background: linear-gradient(135deg, rgba(241, 245, 249, 0.95) 0%, rgba(226, 232, 240, 0.9) 100%);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="light"] .join-action-line {
+  color: #1E293B;
+}
+
+:root[data-theme="light"] .lobby-pin-hero-display {
+  background: #FFFFFF;
+  border-color: #6366F1;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+}
+
+:root[data-theme="light"] .lobby-pin-number {
   color: #4F46E5;
   text-shadow: none;
 }

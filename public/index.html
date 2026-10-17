@@ -96,6 +96,12 @@
                   autofocus
                 >
               </div>
+              <div id="active-pin-badge-wrap" style="display: none; text-align: center; margin-bottom: 0.85rem;">
+                <span style="font-size: 0.9rem; color: var(--text-secondary);">Active Room Code: </span>
+                <button type="button" id="btn-active-pin-fill" style="background: rgba(99, 102, 241, 0.2); border: 1px solid #6366F1; color: #A5B4FC; font-family: var(--font-code); font-weight: 800; font-size: 1rem; border-radius: 8px; padding: 0.25rem 0.75rem; cursor: pointer;" onclick="useDetectedPin()">
+                  <span id="detected-pin-val">------</span> (Click to use)
+                </button>
+              </div>
               <button type="submit" id="btn-pin-submit" class="btn-pc-primary">
                 <span>Continue ➔</span>
               </button>

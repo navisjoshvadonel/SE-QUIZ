@@ -109,13 +109,18 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/info') {
     const hostHeader = req.headers.host || `localhost:${PORT}`;
     const cleanDomain = hostHeader.replace(/^https?:\/\//i, '');
+    const latestRoom = gameManager.getLatestRoom();
+    const activePin = latestRoom ? latestRoom.pin : null;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       appName: 'SE Quiz Game Arena',
       version: '1.0.0',
       joinDomain: cleanDomain,
       port: PORT,
-      activeRooms: gameManager.rooms.size
+      activeRooms: gameManager.rooms.size,
+      activePin: activePin,
+      pin: activePin,
+      code: activePin
     }));
     return;
   }
@@ -290,6 +295,7 @@ wss.on('connection', (client) => {
             break;
           }
           const room = gameManager.createRoom(data && data.customPin, client);
+          console.log(`🔑 [Host Created Room] Active Game PIN / Code: [ ${room.pin} ]`);
           client.send({
             event: 'host_created',
             data: {
@@ -307,6 +313,11 @@ wss.on('connection', (client) => {
         // Host reconnects after F5 / reload
         case 'host_reconnect': {
           const result = gameManager.reconnectHost(data.pin, data.hostToken, client);
+          if (result.success) {
+            console.log(`🔑 [Host Reconnected] Active Game PIN / Code: [ ${data.pin} ]`);
+          } else {
+            console.log(`[Host Reconnect] Room ${data && data.pin} not found or expired.`);
+          }
           client.send({
             event: 'host_reconnect_result',
             data: result
@@ -496,16 +507,20 @@ setInterval(() => {
   }
 }, 25000);
 
+// Create initial room so an active Game PIN is ready immediately
+const initialRoom = gameManager.createRoom();
+
 // Start Server
 server.listen(PORT, '0.0.0.0', () => {
   const localIp = getLocalIp();
   console.log('\n========================================================');
   console.log('🎮 SE QUIZ ARENA - Server Online with Reconnect Resilience!');
-  console.log(`💻 Student Desktop / Laptop: http://localhost:${PORT}/`);
-  console.log(`🖥️ Host Big Screen View:     http://localhost:${PORT}/host`);
-  console.log(`🌐 Local Lab Wi-Fi Join:     http://${localIp}:${PORT}/`);
-  console.log(`📡 Local Lab Wi-Fi Host:     http://${localIp}:${PORT}/host`);
-  console.log(`⚡ In-Memory Cache:          ${staticCache.size} static routes cached in RAM for 60+ student concurrency`);
+  console.log(`🔑 Active Game PIN / Room Code: [ ${initialRoom.pin} ]`);
+  console.log(`💻 Student Desktop / Laptop:    http://localhost:${PORT}/`);
+  console.log(`🖥️ Host Big Screen View:        http://localhost:${PORT}/host`);
+  console.log(`🌐 Local Lab Wi-Fi Join:        http://${localIp}:${PORT}/`);
+  console.log(`📡 Local Lab Wi-Fi Host:        http://${localIp}:${PORT}/host`);
+  console.log(`⚡ In-Memory Cache:             ${staticCache.size} static routes cached in RAM for 60+ student concurrency`);
   console.log('========================================================\n');
 });
 

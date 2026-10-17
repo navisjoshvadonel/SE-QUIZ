@@ -259,6 +259,32 @@ function initUrlParams() {
     document.getElementById('input-pin-val').value = currentPin;
     goToScreen('screen-nickname');
     document.getElementById('input-nickname-val').focus();
+  } else {
+    // Check if an active room is running on server to help students easily join
+    fetch('/api/info')
+      .then(res => res.json())
+      .then(info => {
+        if (info.activePin) {
+          const badge = document.getElementById('active-pin-badge-wrap');
+          const val = document.getElementById('detected-pin-val');
+          if (badge && val) {
+            val.textContent = info.activePin;
+            badge.style.display = 'block';
+          }
+        }
+      })
+      .catch(() => {});
+  }
+}
+
+function useDetectedPin() {
+  const val = document.getElementById('detected-pin-val');
+  if (val && val.textContent && val.textContent !== '------') {
+    const input = document.getElementById('input-pin-val');
+    if (input) {
+      input.value = val.textContent.trim();
+      submitPin();
+    }
   }
 }
 

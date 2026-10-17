@@ -261,6 +261,10 @@ function handleHostEvent(event, data) {
       if (pinVal) pinVal.textContent = currentPin;
       const previewPin = document.getElementById('host-preview-pin');
       if (previewPin) previewPin.textContent = currentPin;
+      const heroPin = document.getElementById('lobby-hero-pin');
+      if (heroPin) heroPin.textContent = currentPin;
+      const pinBanner = document.getElementById('host-pin-container');
+      if (pinBanner) pinBanner.style.display = 'flex';
       fetchNetworkInfo();
       window.sounds.startLobbyMusic();
       showHostScreen('host-screen-lobby');
@@ -275,6 +279,10 @@ function handleHostEvent(event, data) {
         if (pinValRec) pinValRec.textContent = currentPin;
         const previewPinRec = document.getElementById('host-preview-pin');
         if (previewPinRec) previewPinRec.textContent = currentPin;
+        const heroPinRec = document.getElementById('lobby-hero-pin');
+        if (heroPinRec) heroPinRec.textContent = currentPin;
+        const pinBannerRec = document.getElementById('host-pin-container');
+        if (pinBannerRec) pinBannerRec.style.display = 'flex';
         fetchNetworkInfo();
 
         if (data.state === 'QUESTION' && data.currentQuestion) {
@@ -290,7 +298,10 @@ function handleHostEvent(event, data) {
         }
       } else {
         clearHostSession();
-        sendHostEvent('host_create_room', {});
+        sendHostEvent('host_create_room', {
+          password: sessionStorage.getItem('se_quiz_host_pw') || 'njnjnj',
+          hostAuthToken: sessionStorage.getItem('se_quiz_host_auth_token') || ''
+        });
       }
       break;
 
@@ -382,9 +393,20 @@ async function fetchNetworkInfo() {
     const cleanDomain = info.joinDomain || window.location.host;
     const urlEl = document.getElementById('host-pc-join-url');
     if (urlEl) urlEl.textContent = cleanDomain.replace(/^https?:\/\//i, '');
+    const heroUrl = document.getElementById('lobby-hero-url');
+    if (heroUrl) heroUrl.textContent = cleanDomain.replace(/^https?:\/\//i, '');
+    if (info.activePin && (!currentPin || currentPin === '------')) {
+      currentPin = info.activePin;
+      const pinVal = document.getElementById('host-pin-val');
+      if (pinVal) pinVal.textContent = currentPin;
+      const heroPin = document.getElementById('lobby-hero-pin');
+      if (heroPin) heroPin.textContent = currentPin;
+    }
   } catch (e) {
     const urlEl = document.getElementById('host-pc-join-url');
     if (urlEl) urlEl.textContent = window.location.host.replace(/^https?:\/\//i, '');
+    const heroUrl = document.getElementById('lobby-hero-url');
+    if (heroUrl) heroUrl.textContent = window.location.host.replace(/^https?:\/\//i, '');
   }
 }
 
