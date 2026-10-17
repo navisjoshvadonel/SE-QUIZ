@@ -52,6 +52,8 @@ class GameManager {
       clientToToken: new Map(), // clientId -> sessionToken
       answers: new Map(), // sessionToken -> Answer record
       disconnectTimers: new Map(), // sessionToken -> Timeout
+      lobbyStudentThrottleTimer: null,
+      lastLobbyStudentBroadcastTime: 0,
       createdAt: Date.now()
     };
 
@@ -86,6 +88,21 @@ class GameManager {
       }
     }
     // Send to all connected players with zero-copy pre-framed buffer
+    for (const player of room.players.values()) {
+      if (player.isConnected && player.client && !player.client.socket.destroyed) {
+        if (typeof player.client.sendFrame === 'function') {
+          player.client.sendFrame(frame);
+        } else {
+          player.client.send(text);
+        }
+      }
+    }
+  }
+
+  broadcastToStudents(room, event, data) {
+    if (!room || !room.players || room.players.size === 0) return;
+    const text = JSON.stringify({ event, data });
+    const frame = createWsTextFrame(text);
     for (const player of room.players.values()) {
       if (player.isConnected && player.client && !player.client.socket.destroyed) {
         if (typeof player.client.sendFrame === 'function') {
@@ -355,6 +372,9 @@ class GameManager {
   }
 
   broadcastLobbyUpdate(room) {
+    if (!room) return;
+
+    // 1. Direct targeted dispatch to Host with full student list and kick capabilities
     const playerList = Array.from(room.players.values()).map(p => ({
       sessionToken: p.sessionToken,
       nickname: p.nickname,
@@ -363,18 +383,50 @@ class GameManager {
       isConnected: p.isConnected
     }));
 
-    this.broadcastToRoom(room, 'lobby_update', {
+    this.sendToHost(room, 'lobby_update', {
       playerCount: playerList.length,
       players: playerList,
       pin: room.pin,
       totalQuestions: room.questions.length
     });
+
+    // 2. Throttled, security-sanitized broadcast to students (playerCount only, no session tokens)
+    if (room.state !== 'LOBBY') return;
+
+    const LOBBY_THROTTLE_MS = 300;
+    const now = Date.now();
+    const timeSinceLast = now - (room.lastLobbyStudentBroadcastTime || 0);
+
+    const dispatchStudents = () => {
+      room.lobbyStudentThrottleTimer = null;
+      room.lastLobbyStudentBroadcastTime = Date.now();
+      if (room.state !== 'LOBBY') return;
+      this.broadcastToStudents(room, 'lobby_update', {
+        playerCount: room.players.size,
+        pin: room.pin
+      });
+    };
+
+    if (timeSinceLast >= LOBBY_THROTTLE_MS) {
+      if (room.lobbyStudentThrottleTimer) {
+        clearTimeout(room.lobbyStudentThrottleTimer);
+        room.lobbyStudentThrottleTimer = null;
+      }
+      dispatchStudents();
+    } else if (!room.lobbyStudentThrottleTimer) {
+      room.lobbyStudentThrottleTimer = setTimeout(dispatchStudents, LOBBY_THROTTLE_MS - timeSinceLast);
+    }
   }
 
   startGame(pin, hostToken) {
     const room = this.getRoom(pin);
     if (!room || room.hostToken !== hostToken) {
       return { success: false, error: 'Unauthorized or room not found.' };
+    }
+
+    if (room.lobbyStudentThrottleTimer) {
+      clearTimeout(room.lobbyStudentThrottleTimer);
+      room.lobbyStudentThrottleTimer = null;
     }
 
     room.currentQuestionIndex = -1;
