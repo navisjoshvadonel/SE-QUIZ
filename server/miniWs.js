@@ -135,10 +135,26 @@ class WebSocketConnection extends EventEmitter {
         this.close();
         return;
       } else if (opcode === 0x09) {
-        // Ping -> respond Pong
-        if (!this.socket.destroyed) {
+        // RFC 6455 5.5.3: Respond to Ping with Pong containing identical payload
+        if (!this.socket.destroyed && this.socket.writable) {
           try {
-            this.socket.write(Buffer.from([0x8A, 0x00]), () => {});
+            const pLen = rawPayload ? rawPayload.length : 0;
+            let header;
+            if (pLen < 126) {
+              header = Buffer.from([0x8A, pLen]);
+            } else if (pLen < 65536) {
+              header = Buffer.alloc(4);
+              header[0] = 0x8A;
+              header[1] = 126;
+              header.writeUInt16BE(pLen, 2);
+            } else {
+              header = Buffer.alloc(10);
+              header[0] = 0x8A;
+              header[1] = 127;
+              header.writeBigUInt64BE(BigInt(pLen), 2);
+            }
+            const pongFrame = pLen > 0 ? Buffer.concat([header, rawPayload]) : header;
+            this.socket.write(pongFrame, () => {});
           } catch (e) {}
         }
       } else if (opcode === 0x0A) {
@@ -157,7 +173,7 @@ class WebSocketServer extends EventEmitter {
 
     httpServer.on('upgrade', (req, socket, head) => {
       const upgrade = req.headers['upgrade'];
-      if (!upgrade || upgrade.toLowerCase() !== 'websocket') {
+      if (!upgrade || !upgrade.toString().toLowerCase().includes('websocket')) {
         socket.destroy();
         return;
       }

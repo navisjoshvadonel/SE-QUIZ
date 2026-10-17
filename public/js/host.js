@@ -61,6 +61,19 @@ document.addEventListener('DOMContentLoaded', () => {
 function checkHostAuth() {
   const isAuth = sessionStorage.getItem('se_quiz_host_authenticated') === 'true';
   const pinBanner = document.getElementById('host-pin-container');
+  const saved = getSavedHostSession();
+
+  if (saved && saved.pin) {
+    currentPin = saved.pin;
+    currentHostToken = saved.hostToken;
+    const pinVal = document.getElementById('host-pin-val');
+    if (pinVal) pinVal.textContent = currentPin;
+    const heroPin = document.getElementById('lobby-hero-pin');
+    if (heroPin) heroPin.textContent = currentPin;
+  }
+
+  // Fetch network info and guaranteed active PIN immediately from server
+  fetchNetworkInfo();
 
   if (!isAuth) {
     if (pinBanner) pinBanner.style.display = 'none';
@@ -69,7 +82,9 @@ function checkHostAuth() {
     if (input) setTimeout(() => input.focus(), 100);
   } else {
     if (pinBanner) pinBanner.style.display = 'flex';
+    showHostScreen('host-screen-lobby');
     connectHostWebSocket();
+    startHostPolling();
   }
 }
 
@@ -94,9 +109,30 @@ async function verifyDirectHostPassword() {
       if (result.hostAuthToken) {
         sessionStorage.setItem('se_quiz_host_auth_token', result.hostAuthToken);
       }
+
+      // Immediately adopt and display the active PIN returned from HTTP login
+      if (result.pin) {
+        currentPin = result.pin;
+        currentHostToken = result.hostToken || currentHostToken;
+        totalQuestions = result.totalQuestions || 50;
+        saveHostSession(currentPin, currentHostToken);
+
+        const pinVal = document.getElementById('host-pin-val');
+        if (pinVal) pinVal.textContent = currentPin;
+        const heroPin = document.getElementById('lobby-hero-pin');
+        if (heroPin) heroPin.textContent = currentPin;
+        const previewPin = document.getElementById('host-preview-pin');
+        if (previewPin) previewPin.textContent = currentPin;
+      }
+
       const pinBanner = document.getElementById('host-pin-container');
       if (pinBanner) pinBanner.style.display = 'flex';
+
+      showHostScreen('host-screen-lobby');
+      fetchNetworkInfo();
+      window.sounds.startLobbyMusic();
       connectHostWebSocket();
+      startHostPolling();
     } else {
       if (errEl) {
         errEl.textContent = '❌ ' + (result.error || 'Incorrect host password.');
@@ -113,7 +149,10 @@ async function verifyDirectHostPassword() {
       sessionStorage.setItem('se_quiz_host_pw', pw);
       const pinBanner = document.getElementById('host-pin-container');
       if (pinBanner) pinBanner.style.display = 'flex';
+      showHostScreen('host-screen-lobby');
+      fetchNetworkInfo();
       connectHostWebSocket();
+      startHostPolling();
     } else {
       if (errEl) {
         errEl.textContent = '❌ Incorrect host password.';
@@ -121,6 +160,95 @@ async function verifyDirectHostPassword() {
       }
     }
   }
+}
+
+// Generate fresh Room PIN via REST API
+async function generateNewRoomPin() {
+  try {
+    const pw = sessionStorage.getItem('se_quiz_host_pw') || 'njnjnj';
+    const hostAuthToken = sessionStorage.getItem('se_quiz_host_auth_token') || '';
+    const res = await fetch('/api/host/create_room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw, hostAuthToken })
+    });
+    const result = await res.json();
+    if (result.success && result.pin) {
+      currentPin = result.pin;
+      currentHostToken = result.hostToken;
+      saveHostSession(currentPin, currentHostToken);
+
+      const pinVal = document.getElementById('host-pin-val');
+      if (pinVal) pinVal.textContent = currentPin;
+      const heroPin = document.getElementById('lobby-hero-pin');
+      if (heroPin) heroPin.textContent = currentPin;
+      const previewPin = document.getElementById('host-preview-pin');
+      if (previewPin) previewPin.textContent = currentPin;
+
+      totalPlayers = 0;
+      const cnt = document.getElementById('host-player-count');
+      if (cnt) cnt.textContent = '0';
+      const grid = document.getElementById('host-player-grid');
+      if (grid) {
+        grid.innerHTML = `
+          <div id="lobby-empty-placeholder" class="empty-arena-state">
+            <div class="empty-icon">💻</div>
+            <h3>Waiting for students to join from PC...</h3>
+            <p>Direct students to enter the URL & PIN above on their desktop browsers</p>
+          </div>
+        `;
+      }
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        sendHostEvent('host_reconnect', { pin: currentPin, hostToken: currentHostToken });
+      }
+      if (window.sounds && window.sounds.playSelect) window.sounds.playSelect();
+    }
+  } catch (e) {
+    console.error('Failed to generate new PIN:', e);
+  }
+}
+
+let hostPollingTimer = null;
+function startHostPolling() {
+  if (hostPollingTimer) return;
+  hostPollingTimer = setInterval(pollHostRoomState, 1500);
+}
+
+async function pollHostRoomState() {
+  if (!currentPin || currentPin === '------') return;
+  // If WebSocket is alive, let WS handle live stream
+  if (ws && ws.readyState === WebSocket.OPEN) return;
+
+  try {
+    const tokenQuery = currentHostToken ? `&hostToken=${encodeURIComponent(currentHostToken)}` : '';
+    const res = await fetch(`/api/room/state?pin=${encodeURIComponent(currentPin)}${tokenQuery}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.success) return;
+
+    const currentScreen = document.querySelector('.host-view.active');
+    const isLobby = currentScreen && currentScreen.id === 'host-screen-lobby';
+    if (isLobby && data.players) {
+      updateLobby({
+        playerCount: data.playerCount,
+        players: data.players,
+        pin: data.pin,
+        totalQuestions: data.totalQuestions
+      });
+    }
+
+    if (data.state === 'QUESTION' && data.question && currentQuestionIndex !== data.currentQuestionIndex) {
+      showQuestion({
+        questionIndex: data.currentQuestionIndex,
+        totalQuestions: data.totalQuestions,
+        question: data.question.question,
+        options: data.question.options,
+        timeLimit: data.timeLimit,
+        unit: data.question.unit
+      });
+    }
+  } catch (e) {}
 }
 
 const hostPendingOutbox = [];
@@ -133,10 +261,16 @@ function connectHostWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}`;
 
-  ws = new WebSocket(wsUrl);
+  try {
+    ws = new WebSocket(wsUrl);
+  } catch (err) {
+    console.warn('WebSocket connection init failed, HTTP polling will handle state:', err);
+    startHostPolling();
+    return;
+  }
 
   ws.onopen = () => {
-    console.log('Host connected to server');
+    console.log('Host connected to server via WebSocket');
 
     // Flush any pending events in outbox immediately
     while (hostPendingOutbox.length > 0) {
@@ -174,8 +308,13 @@ function connectHostWebSocket() {
   };
 
   ws.onclose = () => {
-    console.warn('Host disconnected. Reconnecting in 2s...');
+    console.warn('Host WebSocket closed. Reconnecting in 2s (HTTP polling active)...');
+    startHostPolling();
     setTimeout(connectHostWebSocket, 2000);
+  };
+
+  ws.onerror = () => {
+    startHostPolling();
   };
 }
 
@@ -187,6 +326,25 @@ function sendHostEvent(eventName, data) {
     hostPendingOutbox.push(payload);
     if (!ws || ws.readyState === WebSocket.CLOSED) {
       connectHostWebSocket();
+    }
+  }
+
+  // HTTP REST fallback when WebSocket is offline or blocked by college firewall
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    let action = null;
+    if (eventName === 'host_start_game') action = 'start';
+    else if (eventName === 'host_next_question') action = 'next_question';
+    else if (eventName === 'host_pause_timer') action = 'pause_timer';
+    else if (eventName === 'host_resume_timer') action = 'resume_timer';
+    else if (eventName === 'host_show_leaderboard') action = 'show_leaderboard';
+    else if (eventName === 'host_end_game') action = 'end_game';
+
+    if (action && data && data.pin && data.hostToken) {
+      fetch('/api/host/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: data.pin, hostToken: data.hostToken, action })
+      }).catch(() => {});
     }
   }
 }
@@ -395,12 +553,16 @@ async function fetchNetworkInfo() {
     if (urlEl) urlEl.textContent = cleanDomain.replace(/^https?:\/\//i, '');
     const heroUrl = document.getElementById('lobby-hero-url');
     if (heroUrl) heroUrl.textContent = cleanDomain.replace(/^https?:\/\//i, '');
-    if (info.activePin && (!currentPin || currentPin === '------')) {
-      currentPin = info.activePin;
+    if (info.activePin) {
+      if (!currentPin || currentPin === '------') {
+        currentPin = info.activePin;
+      }
       const pinVal = document.getElementById('host-pin-val');
-      if (pinVal) pinVal.textContent = currentPin;
+      if (pinVal && (!pinVal.textContent || pinVal.textContent === '------')) pinVal.textContent = info.activePin;
       const heroPin = document.getElementById('lobby-hero-pin');
-      if (heroPin) heroPin.textContent = currentPin;
+      if (heroPin && (!heroPin.textContent || heroPin.textContent === '------')) heroPin.textContent = info.activePin;
+      const previewPin = document.getElementById('host-preview-pin');
+      if (previewPin && (!previewPin.textContent || previewPin.textContent === '------')) previewPin.textContent = info.activePin;
     }
   } catch (e) {
     const urlEl = document.getElementById('host-pc-join-url');

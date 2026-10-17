@@ -109,9 +109,16 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/info') {
     const hostHeader = req.headers.host || `localhost:${PORT}`;
     const cleanDomain = hostHeader.replace(/^https?:\/\//i, '');
-    const latestRoom = gameManager.getLatestRoom();
+    let latestRoom = gameManager.getLatestRoom();
+    if (!latestRoom || latestRoom.state === 'GAME_OVER') {
+      latestRoom = gameManager.createRoom();
+      console.log(`🔑 [Auto Room Init] Ready with Game PIN: [ ${latestRoom.pin} ]`);
+    }
     const activePin = latestRoom ? latestRoom.pin : null;
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    });
     res.end(JSON.stringify({
       appName: 'SE Quiz Game Arena',
       version: '1.0.0',
@@ -120,7 +127,10 @@ const server = http.createServer((req, res) => {
       activeRooms: gameManager.rooms.size,
       activePin: activePin,
       pin: activePin,
-      code: activePin
+      code: activePin,
+      state: latestRoom ? latestRoom.state : 'LOBBY',
+      playerCount: latestRoom ? latestRoom.players.size : 0,
+      totalQuestions: latestRoom ? latestRoom.questions.length : 50
     }));
     return;
   }
@@ -147,9 +157,7 @@ const server = http.createServer((req, res) => {
     let body = '';
     req.on('data', chunk => {
       body += chunk;
-      if (body.length > MAX_POST_BYTES) {
-        req.destroy();
-      }
+      if (body.length > MAX_POST_BYTES) req.destroy();
     });
     req.on('end', () => {
       try {
@@ -157,8 +165,22 @@ const server = http.createServer((req, res) => {
         if (password && password.trim() === HOST_PASSWORD) {
           const hostAuthToken = crypto.randomBytes(16).toString('hex');
           gameManager.validHostAuthTokens.add(hostAuthToken);
+
+          let room = gameManager.getLatestRoom();
+          if (!room || room.state === 'GAME_OVER') {
+            room = gameManager.createRoom();
+          }
+
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true, hostAuthToken }));
+          res.end(JSON.stringify({
+            success: true,
+            hostAuthToken,
+            pin: room.pin,
+            hostToken: room.hostToken,
+            state: room.state,
+            totalQuestions: room.questions.length,
+            playerCount: room.players.size
+          }));
         } else {
           res.writeHead(401, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: false, error: 'Incorrect host password.' }));
@@ -166,6 +188,171 @@ const server = http.createServer((req, res) => {
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: 'Invalid request body.' }));
+      }
+    });
+    return;
+  }
+
+  // Create or Regenerate Room via REST (100% immune to lab firewall WS blocks)
+  if (pathname === '/api/host/create_room' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > MAX_POST_BYTES) req.destroy();
+    });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const isPwValid = (data.password && data.password.trim() === HOST_PASSWORD) ||
+                          (data.hostAuthToken && gameManager.validHostAuthTokens.has(data.hostAuthToken));
+        if (!isPwValid) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Incorrect host password. Access denied.' }));
+          return;
+        }
+        const room = gameManager.createRoom(data.customPin);
+        console.log(`🔑 [REST API] Host created fresh Room PIN: [ ${room.pin} ]`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          pin: room.pin,
+          hostToken: room.hostToken,
+          state: room.state,
+          totalQuestions: room.questions.length,
+          playerCount: 0
+        }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Invalid request body.' }));
+      }
+    });
+    return;
+  }
+
+  // Student Join via REST (Instant fallback for lab firewalls blocking WebSocket)
+  if (pathname === '/api/player/join' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > MAX_POST_BYTES) req.destroy();
+    });
+    req.on('end', () => {
+      try {
+        const { pin, nickname, avatar } = JSON.parse(body || '{}');
+        const mockClient = {
+          id: 'rest_' + Math.random().toString(36).slice(2, 9),
+          send: () => {},
+          sendFrame: () => {},
+          socket: { destroyed: false, writable: false }
+        };
+        const result = gameManager.addPlayer(pin, mockClient, nickname, avatar);
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        });
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // Room Polling State API (Synchronizes game state across lab PCs if WebSockets are blocked)
+  if (pathname === '/api/room/state') {
+    const pin = parsedUrl.searchParams.get('pin');
+    const sessionToken = parsedUrl.searchParams.get('sessionToken');
+    const hostToken = parsedUrl.searchParams.get('hostToken');
+    const room = gameManager.getRoom(pin);
+    if (!room) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: 'Room not found' }));
+      return;
+    }
+
+    const isHost = hostToken && room.hostToken === hostToken;
+    const player = sessionToken ? room.players.get(sessionToken) : null;
+    const currentQ = room.currentQuestionIndex >= 0 ? room.questions[room.currentQuestionIndex] : null;
+    const elapsedMs = room.questionStartTime ? Math.max(0, Date.now() - room.questionStartTime) : 0;
+    const remainingMs = Math.max(0, (room.timeLimit * 1000) - elapsedMs);
+
+    const playersList = isHost ? Array.from(room.players.values()).map(p => ({
+      sessionToken: p.sessionToken,
+      nickname: p.nickname,
+      avatar: p.avatar,
+      score: p.score,
+      isConnected: p.isConnected
+    })) : null;
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    });
+    res.end(JSON.stringify({
+      success: true,
+      pin: room.pin,
+      state: room.state,
+      currentQuestionIndex: room.currentQuestionIndex,
+      totalQuestions: room.questions.length,
+      playerCount: room.players.size,
+      timeLimit: room.timeLimit,
+      remainingMs,
+      elapsedMs,
+      players: playersList,
+      question: currentQ ? {
+        question: currentQ.question,
+        options: currentQ.options,
+        timeLimit: room.timeLimit,
+        unit: currentQ.unit || '',
+        difficulty: currentQ.difficulty || ''
+      } : null,
+      player: player ? {
+        nickname: player.nickname,
+        score: player.score,
+        streak: player.streak,
+        answered: room.answers.has(sessionToken)
+      } : null
+    }));
+    return;
+  }
+
+  // Host Action Control API via REST (Start, Next, Pause, Resume, Results)
+  if (pathname === '/api/host/action' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > MAX_POST_BYTES) req.destroy();
+    });
+    req.on('end', () => {
+      try {
+        const { pin, hostToken, action } = JSON.parse(body || '{}');
+        const room = gameManager.getRoom(pin);
+        if (!room || room.hostToken !== hostToken) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Unauthorized or room not found' }));
+          return;
+        }
+
+        if (action === 'start') {
+          gameManager.startGame(pin, hostToken);
+        } else if (action === 'next_question') {
+          gameManager.nextQuestion(room);
+        } else if (action === 'pause_timer') {
+          gameManager.pauseQuestion(room);
+        } else if (action === 'resume_timer') {
+          gameManager.resumeQuestion(room);
+        } else if (action === 'show_leaderboard') {
+          gameManager.showLeaderboard(room);
+        } else if (action === 'end_game') {
+          gameManager.endGame(room);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, state: room.state }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
       }
     });
     return;

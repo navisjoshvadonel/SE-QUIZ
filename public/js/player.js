@@ -80,15 +80,58 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 const pendingOutbox = [];
+let playerPollingTimer = null;
+
+function startPlayerPolling() {
+  if (playerPollingTimer) return;
+  playerPollingTimer = setInterval(pollPlayerRoomState, 1200);
+}
+
+async function pollPlayerRoomState() {
+  if (!currentPin || !mySessionToken) return;
+  if (ws && ws.readyState === WebSocket.OPEN) return;
+
+  try {
+    const res = await fetch(`/api/room/state?pin=${encodeURIComponent(currentPin)}&sessionToken=${encodeURIComponent(mySessionToken)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.success) return;
+
+    if (data.state === 'LOBBY') {
+      const lobbyCnt = document.getElementById('lobby-player-count');
+      if (lobbyCnt) lobbyCnt.textContent = data.playerCount || 1;
+    } else if (data.state === 'QUESTION' && data.question) {
+      if (currentQuestionIndex !== data.currentQuestionIndex) {
+        canSubmitAnswer = true;
+        showStudentQuestion({
+          questionIndex: data.currentQuestionIndex,
+          totalQuestions: data.totalQuestions,
+          question: data.question.question,
+          options: data.question.options,
+          timeLimit: data.timeLimit
+        });
+      }
+      if (data.remainingMs !== undefined) {
+        updateCircularTimer(data.remainingMs);
+      }
+    }
+  } catch (e) {}
+}
 
 function connectWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}`;
 
-  ws = new WebSocket(wsUrl);
+  try {
+    ws = new WebSocket(wsUrl);
+  } catch (e) {
+    console.warn('WebSocket init failed, activating polling fallback:', e);
+    startPlayerPolling();
+    return;
+  }
 
   ws.onopen = () => {
-    console.log('Connected to SE Quiz Server');
+    console.log('Connected to SE Quiz Server via WebSocket');
 
     // Flush any pending events in outbox immediately
     while (pendingOutbox.length > 0) {
@@ -121,8 +164,13 @@ function connectWebSocket() {
   };
 
   ws.onclose = () => {
-    console.warn('Disconnected. Attempting auto-reconnect in 2s...');
+    console.warn('WebSocket closed. Reconnecting in 2s (polling fallback active)...');
+    startPlayerPolling();
     setTimeout(connectWebSocket, 2000);
+  };
+
+  ws.onerror = () => {
+    startPlayerPolling();
   };
 }
 
@@ -133,6 +181,7 @@ function sendEvent(eventName, data) {
   } else {
     console.warn('WebSocket not open. Queuing event in outbox:', eventName);
     pendingOutbox.push(payload);
+    startPlayerPolling();
     if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
       connectWebSocket();
     }
@@ -256,20 +305,26 @@ function initUrlParams() {
   const pin = params.get('pin');
   if (pin) {
     currentPin = pin.trim().toUpperCase();
-    document.getElementById('input-pin-val').value = currentPin;
+    const pinInput = document.getElementById('input-pin-val');
+    if (pinInput) pinInput.value = currentPin;
     goToScreen('screen-nickname');
-    document.getElementById('input-nickname-val').focus();
+    const nickInput = document.getElementById('input-nickname-val');
+    if (nickInput) nickInput.focus();
   } else {
-    // Check if an active room is running on server to help students easily join
+    // Automatically fetch active room info from server
     fetch('/api/info')
       .then(res => res.json())
       .then(info => {
         if (info.activePin) {
           const badge = document.getElementById('active-pin-badge-wrap');
           const val = document.getElementById('detected-pin-val');
+          const input = document.getElementById('input-pin-val');
           if (badge && val) {
             val.textContent = info.activePin;
             badge.style.display = 'block';
+          }
+          if (input && !input.value) {
+            input.value = info.activePin;
           }
         }
       })
@@ -376,6 +431,27 @@ function submitNickname() {
     nickname: myNickname,
     avatar: selectedAvatar
   });
+
+  // REST fallback for lab firewalls blocking WebSocket
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    fetch('/api/player/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pin: currentPin,
+        nickname: myNickname,
+        avatar: selectedAvatar
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      handleServerEvent('player_join_result', data);
+      startPlayerPolling();
+    })
+    .catch(err => {
+      console.warn('REST player join fallback error:', err);
+    });
+  }
 }
 
 // Handle Server Events
