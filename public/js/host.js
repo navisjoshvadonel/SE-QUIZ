@@ -871,43 +871,7 @@ function showQuestionResult(data) {
     }
   }
 
-  // Render Live Score Sync Strip on Host Result Screen:
-  const syncStrip = document.getElementById('host-result-live-scores-strip');
-  if (syncStrip) {
-    const top = data.topPlayers || [];
-    if (top.length === 0) {
-      syncStrip.innerHTML = '<div class="sync-strip-empty">No student responses recorded this round</div>';
-    } else {
-      syncStrip.innerHTML = `
-        <div class="sync-strip-header">
-          <span class="sync-strip-title">⚡ Live Score Sync • Top Round Scorers (${data.totalAnswered || 0}/${data.totalPlayers || 0} Answered)</span>
-          <span class="sync-strip-status">🟢 Synced with Host</span>
-        </div>
-        <div class="sync-strip-cards">
-          ${top.map(p => {
-            const gainBadge = p.scoreGained > 0
-              ? `<span class="sync-gain-pill is-correct">+${p.scoreGained} pts</span>`
-              : `<span class="sync-gain-pill is-zero">+0 pts</span>`;
-            const timeBadge = p.timeTaken ? `<span class="sync-time-badge">⚡ ${p.timeTaken}s</span>` : '';
-            const streakBadge = p.streak > 1 ? `<span class="sync-streak-badge">🔥 ${p.streak}</span>` : '';
-            return `
-              <div class="sync-student-chip ${p.rank <= 3 ? 'rank-' + p.rank : ''}">
-                <span class="sync-chip-rank">#${p.rank}</span>
-                <span class="sync-chip-avatar">${getAvatarSvg(p.avatar, 24)}</span>
-                <span class="sync-chip-name">${p.nickname}</span>
-                <div class="sync-chip-score-box">
-                  <span class="sync-chip-total">${p.score.toLocaleString()} pts</span>
-                  ${gainBadge}
-                </div>
-                ${timeBadge}
-                ${streakBadge}
-              </div>
-            `;
-          }).join('')}
-        </div>
-      `;
-    }
-  }
+
 
   // Question & all 4 options are shown cleanly.
   // Wait for Host to press Space or Enter (or click) to trigger animated Leaderboard
