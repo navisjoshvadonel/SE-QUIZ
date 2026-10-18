@@ -210,6 +210,8 @@ async function generateNewRoomPin() {
 }
 
 let hostPollingTimer = null;
+let hostHeartbeatInterval = null;
+
 function startHostPolling() {
   if (hostPollingTimer) return;
   hostPollingTimer = setInterval(pollHostRoomState, 1500);
@@ -228,25 +230,43 @@ async function pollHostRoomState() {
     if (!data.success) return;
 
     const currentScreen = document.querySelector('.host-view.active');
-    const isLobby = currentScreen && currentScreen.id === 'host-screen-lobby';
-    if (isLobby && data.players) {
-      updateLobby({
-        playerCount: data.playerCount,
-        players: data.players,
-        pin: data.pin,
-        totalQuestions: data.totalQuestions
-      });
-    }
 
-    if (data.state === 'QUESTION' && data.question && currentQuestionIndex !== data.currentQuestionIndex) {
-      showQuestion({
-        questionIndex: data.currentQuestionIndex,
-        totalQuestions: data.totalQuestions,
-        question: data.question.question,
-        options: data.question.options,
-        timeLimit: data.timeLimit,
-        unit: data.question.unit
-      });
+    if (data.state === 'LOBBY') {
+      if (currentScreen && currentScreen.id === 'host-screen-lobby' && data.players) {
+        updateLobby({
+          playerCount: data.playerCount,
+          players: data.players,
+          pin: data.pin,
+          totalQuestions: data.totalQuestions
+        });
+      }
+    } else if (data.state === 'COUNTDOWN') {
+      if (!currentScreen || currentScreen.id !== 'host-screen-countdown') {
+        showHostScreen('host-screen-countdown');
+      }
+    } else if (data.state === 'QUESTION' && data.question) {
+      if (currentQuestionIndex !== data.currentQuestionIndex) {
+        showQuestion({
+          questionIndex: data.currentQuestionIndex,
+          totalQuestions: data.totalQuestions,
+          question: data.question.question,
+          options: data.question.options,
+          timeLimit: data.timeLimit,
+          unit: data.question.unit
+        });
+      }
+    } else if (data.state === 'RESULT' && data.resultSnapshot) {
+      if (!currentScreen || currentScreen.id !== 'host-screen-result') {
+        showQuestionResult(data.resultSnapshot);
+      }
+    } else if (data.state === 'LEADERBOARD' && data.leaderboardSnapshot) {
+      if (!currentScreen || currentScreen.id !== 'host-screen-leaderboard') {
+        showLeaderboard(data.leaderboardSnapshot);
+      }
+    } else if (data.state === 'GAME_OVER' && data.gameOverSnapshot) {
+      if (!currentScreen || currentScreen.id !== 'host-screen-podium') {
+        showPodium(data.gameOverSnapshot);
+      }
     }
   } catch (e) {}
 }
@@ -282,6 +302,14 @@ function connectHostWebSocket() {
       }
     }
 
+    // Start 15s application heartbeat to prevent lab firewall idle dropouts
+    if (hostHeartbeatInterval) clearInterval(hostHeartbeatInterval);
+    hostHeartbeatInterval = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        try { ws.send(JSON.stringify({ event: 'ping' })); } catch (e) {}
+      }
+    }, 15000);
+
     // Check if host had an active session (F5 recovery)
     const saved = getSavedHostSession();
     if (saved && saved.pin && saved.hostToken) {
@@ -301,6 +329,7 @@ function connectHostWebSocket() {
   ws.onmessage = (event) => {
     try {
       const { event: evtName, data } = JSON.parse(event.data);
+      if (evtName === 'pong') return;
       handleHostEvent(evtName, data);
     } catch (err) {
       console.error('Host failed to parse WS message:', err);
@@ -309,6 +338,7 @@ function connectHostWebSocket() {
 
   ws.onclose = () => {
     console.warn('Host WebSocket closed. Reconnecting in 2s (HTTP polling active)...');
+    if (hostHeartbeatInterval) clearInterval(hostHeartbeatInterval);
     startHostPolling();
     setTimeout(connectHostWebSocket, 2000);
   };
@@ -337,13 +367,16 @@ function sendHostEvent(eventName, data) {
     else if (eventName === 'host_pause_timer') action = 'pause_timer';
     else if (eventName === 'host_resume_timer') action = 'resume_timer';
     else if (eventName === 'host_show_leaderboard') action = 'show_leaderboard';
-    else if (eventName === 'host_end_game') action = 'end_game';
+    else if (eventName === 'host_end_game' || eventName === 'host_end_game_early') action = 'end_game';
+    else if (eventName === 'host_end_question_now' || eventName === 'host_skip_timer') action = 'skip_timer';
+    else if (eventName === 'host_prev_question') action = 'prev_question';
+    else if (eventName === 'host_jump_question') action = 'jump_question';
 
     if (action && data && data.pin && data.hostToken) {
       fetch('/api/host/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: data.pin, hostToken: data.hostToken, action })
+        body: JSON.stringify({ pin: data.pin, hostToken: data.hostToken, action, questionIndex: data.questionIndex })
       }).catch(() => {});
     }
   }
@@ -553,6 +586,7 @@ async function fetchNetworkInfo() {
     if (urlEl) urlEl.textContent = cleanDomain.replace(/^https?:\/\//i, '');
     const heroUrl = document.getElementById('lobby-hero-url');
     if (heroUrl) heroUrl.textContent = cleanDomain.replace(/^https?:\/\//i, '');
+
     if (info.activePin) {
       if (!currentPin || currentPin === '------') {
         currentPin = info.activePin;
@@ -564,12 +598,38 @@ async function fetchNetworkInfo() {
       const previewPin = document.getElementById('host-preview-pin');
       if (previewPin && (!previewPin.textContent || previewPin.textContent === '------')) previewPin.textContent = info.activePin;
     }
+
+    // Populate Lab IP Dropdown if multiple network adapters exist
+    if (info.allIps && info.allIps.length > 0) {
+      const selectWrap = document.getElementById('lobby-ip-selector-wrap');
+      const select = document.getElementById('lobby-ip-select');
+      if (select && selectWrap) {
+        select.innerHTML = '';
+        info.allIps.forEach(net => {
+          const opt = document.createElement('option');
+          opt.value = `${net.ip}:${info.port || 3000}`;
+          opt.textContent = `${net.name}: ${net.ip} ${net.isWifi ? '(Wi-Fi ⭐)' : ''}`;
+          if (cleanDomain.includes(net.ip)) opt.selected = true;
+          select.appendChild(opt);
+        });
+        selectWrap.style.display = 'block';
+      }
+    }
+
+    }
   } catch (e) {
     const urlEl = document.getElementById('host-pc-join-url');
     if (urlEl) urlEl.textContent = window.location.host.replace(/^https?:\/\//i, '');
     const heroUrl = document.getElementById('lobby-hero-url');
     if (heroUrl) heroUrl.textContent = window.location.host.replace(/^https?:\/\//i, '');
   }
+}
+
+function changeHostIp(selectedDomain) {
+  const heroUrl = document.getElementById('lobby-hero-url');
+  if (heroUrl) heroUrl.textContent = selectedDomain.replace(/^https?:\/\//i, '');
+  const urlEl = document.getElementById('host-pc-join-url');
+  if (urlEl) urlEl.textContent = selectedDomain.replace(/^https?:\/\//i, '');
 }
 
 // Update lobby student list & count

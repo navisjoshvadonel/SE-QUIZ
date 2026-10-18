@@ -40,6 +40,7 @@ class SoundEngine {
   playTone(freq, type = 'sine', duration = 0.2, gainValue = 0.15) {
     if (this.isMuted) return;
     this.init();
+    if (!this.ctx) return;
     try {
       const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
@@ -62,6 +63,7 @@ class SoundEngine {
   playPianoNote(freq, duration = 1.1, gainValue = 0.032) {
     if (this.isMuted || !freq) return;
     this.init();
+    if (!this.ctx) return;
     try {
       const now = this.ctx.currentTime;
       const osc1 = this.ctx.createOscillator();
@@ -100,6 +102,7 @@ class SoundEngine {
   playClickPop() {
     if (this.isMuted) return;
     this.init();
+    if (!this.ctx) return;
     try {
       const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();

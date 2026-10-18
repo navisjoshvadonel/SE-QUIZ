@@ -447,8 +447,10 @@ class GameManager {
   }
 
   nextQuestion(room) {
-    if (room.questionTimer) clearTimeout(room.questionTimer);
-    if (room.countdownTimer) clearTimeout(room.countdownTimer);
+    if (room.questionTimer) { clearTimeout(room.questionTimer); room.questionTimer = null; }
+    if (room.countdownTimer) { clearInterval(room.countdownTimer); room.countdownTimer = null; }
+    if (room.allAnsweredTimeout) { clearTimeout(room.allAnsweredTimeout); room.allAnsweredTimeout = null; }
+    if (room.studentProgressTimer) { clearTimeout(room.studentProgressTimer); room.studentProgressTimer = null; }
 
     room.currentQuestionIndex++;
     if (room.currentQuestionIndex >= room.questions.length) {
@@ -478,6 +480,7 @@ class GameManager {
         this.broadcastToRoom(room, 'countdown_tick', { countdown });
       } else {
         clearInterval(interval);
+        room.countdownTimer = null;
         this.startQuestion(room);
       }
     }, 1000);
@@ -486,6 +489,11 @@ class GameManager {
   }
 
   startQuestion(room) {
+    if (room.questionTimer) { clearTimeout(room.questionTimer); room.questionTimer = null; }
+    if (room.countdownTimer) { clearInterval(room.countdownTimer); room.countdownTimer = null; }
+    if (room.allAnsweredTimeout) { clearTimeout(room.allAnsweredTimeout); room.allAnsweredTimeout = null; }
+    if (room.studentProgressTimer) { clearTimeout(room.studentProgressTimer); room.studentProgressTimer = null; }
+
     const q = room.questions[room.currentQuestionIndex];
     room.state = 'QUESTION';
     room.timeLimit = q.timeLimit || 20;
@@ -514,15 +522,18 @@ class GameManager {
   }
 
   // Host Controls: Pause Timer
-  pauseQuestion(pin, hostToken) {
-    const room = this.getRoom(pin);
-    if (!room || room.hostToken !== hostToken) return { success: false, error: 'Unauthorized' };
+  pauseQuestion(pinOrRoom, hostToken = null) {
+    const room = (typeof pinOrRoom === 'object' && pinOrRoom && pinOrRoom.pin) ? pinOrRoom : this.getRoom(pinOrRoom);
+    if (!room) return { success: false, error: 'Room not found' };
+    if (hostToken && room.hostToken !== hostToken) return { success: false, error: 'Unauthorized' };
     if (room.state !== 'QUESTION' || room.isPaused) return { success: false, error: 'Not in active question' };
 
     const elapsed = Date.now() - (room.questionStartTime || Date.now());
     room.remainingMs = Math.max(500, (room.timeLimit * 1000) - elapsed);
     room.isPaused = true;
-    if (room.questionTimer) clearTimeout(room.questionTimer);
+    if (room.questionTimer) { clearTimeout(room.questionTimer); room.questionTimer = null; }
+    if (room.allAnsweredTimeout) { clearTimeout(room.allAnsweredTimeout); room.allAnsweredTimeout = null; }
+    room.isResolvingAllAnswered = false;
 
     this.broadcastToRoom(room, 'timer_paused', {
       remainingMs: room.remainingMs,
@@ -533,9 +544,10 @@ class GameManager {
   }
 
   // Host Controls: Resume Timer
-  resumeQuestion(pin, hostToken) {
-    const room = this.getRoom(pin);
-    if (!room || room.hostToken !== hostToken) return { success: false, error: 'Unauthorized' };
+  resumeQuestion(pinOrRoom, hostToken = null) {
+    const room = (typeof pinOrRoom === 'object' && pinOrRoom && pinOrRoom.pin) ? pinOrRoom : this.getRoom(pinOrRoom);
+    if (!room) return { success: false, error: 'Room not found' };
+    if (hostToken && room.hostToken !== hostToken) return { success: false, error: 'Unauthorized' };
     if (room.state !== 'QUESTION' || !room.isPaused) return { success: false, error: 'Not paused' };
 
     room.isPaused = false;
@@ -546,6 +558,7 @@ class GameManager {
       remainingSec: Math.ceil(room.remainingMs / 1000)
     });
 
+    if (room.questionTimer) clearTimeout(room.questionTimer);
     room.questionTimer = setTimeout(() => {
       this.resolveQuestion(room);
     }, room.remainingMs + 200);
@@ -554,13 +567,14 @@ class GameManager {
   }
 
   // Host Controls: Force End Question / Skip Timer
-  forceEndQuestion(pin, hostToken) {
-    const room = this.getRoom(pin);
-    if (!room || room.hostToken !== hostToken) return { success: false, error: 'Unauthorized' };
+  forceEndQuestion(pinOrRoom, hostToken = null) {
+    const room = (typeof pinOrRoom === 'object' && pinOrRoom && pinOrRoom.pin) ? pinOrRoom : this.getRoom(pinOrRoom);
+    if (!room) return { success: false, error: 'Room not found' };
+    if (hostToken && room.hostToken !== hostToken) return { success: false, error: 'Unauthorized' };
     if (room.state !== 'QUESTION') return { success: false, error: 'Not in question state' };
 
-    if (room.questionTimer) clearTimeout(room.questionTimer);
-    if (room.allAnsweredTimeout) clearTimeout(room.allAnsweredTimeout);
+    if (room.questionTimer) { clearTimeout(room.questionTimer); room.questionTimer = null; }
+    if (room.allAnsweredTimeout) { clearTimeout(room.allAnsweredTimeout); room.allAnsweredTimeout = null; }
     this.resolveQuestion(room);
     return { success: true };
   }

@@ -93,16 +93,21 @@
     <main id="host-screen-lobby" class="host-view active">
       <div class="lab-lobby-layout clean-full-arena">
         
-        <!-- Massive Lobby Join Code & Instructions Card -->
-        <div class="lobby-join-banner-hero" id="lobby-hero-banner">
+        <!-- Massive Lobby Join Code & Instructions Card for College Lab PCs -->
+        <div class="lobby-join-banner-hero" id="lobby-hero-banner" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
           <div class="lobby-join-instructions">
-            <span class="join-badge">STUDENT JOIN INSTRUCTIONS</span>
-            <div class="join-action-line">
-              <span>Open in browser: <strong class="join-url-highlight" id="lobby-hero-url">localhost:3000</strong></span>
+            <span class="join-badge">💻 LAB PC DESKTOP JOIN INSTRUCTIONS</span>
+            <div class="join-action-line" style="margin-top: 0.4rem;">
+              <span style="font-size: 1.15rem; font-weight: 600;">Open browser on Lab PC: <strong class="join-url-highlight" id="lobby-hero-url" style="font-size: 1.35rem; color: #818CF8; font-family: var(--font-code); background: rgba(99, 102, 241, 0.15); padding: 4px 12px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.35);">localhost:3000</strong></span>
+            </div>
+            <div id="lobby-ip-selector-wrap" style="display: none; margin-top: 0.6rem;">
+              <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">Lab LAN / Network Adapter: </span>
+              <select id="lobby-ip-select" onchange="changeHostIp(this.value)" style="background: rgba(0,0,0,0.5); color: #A5B4FC; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; padding: 4px 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer;">
+              </select>
             </div>
           </div>
-          <div class="lobby-pin-hero-display">
-            <span class="lobby-pin-badge">GAME PIN:</span>
+          <div class="lobby-pin-hero-display" style="padding: 1rem 1.75rem; border-radius: 16px;">
+            <span class="lobby-pin-badge" style="letter-spacing: 0.15em;">GAME PIN:</span>
             <span class="lobby-pin-number" id="lobby-hero-pin">------</span>
           </div>
         </div>

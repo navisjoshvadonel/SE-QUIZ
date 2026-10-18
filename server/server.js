@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const zlib = require('zlib');
 const { WebSocketServer } = require('./miniWs');
 const GameManager = require('./gameManager');
+const { generateQRCodeSVG } = require('./qr');
 
 const PORT = process.env.PORT || 3000;
 const HOST_PASSWORD = process.env.HOST_PASSWORD || 'njnjnj';
@@ -25,14 +26,42 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
-function getLocalIp() {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
+function getNetworkIps() {
+  const ifaces = os.networkInterfaces();
+  const list = [];
+  const VIRTUAL_REGEX = /(virtual|vmware|vbox|veth|wsl|hyper-v|docker|pseudo|loopback|tap|tun|tailscale|zerotier|hamachi)/i;
+
+  for (const [name, arr] of Object.entries(ifaces)) {
+    for (const iface of arr) {
       if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
+        const isVirtual = VIRTUAL_REGEX.test(name) || iface.address.startsWith('169.254.') || iface.address.startsWith('192.168.56.');
+        list.push({
+          name,
+          address: iface.address,
+          isVirtual,
+          isWifi: /wi-?fi|wireless|wlan/i.test(name)
+        });
       }
     }
+  }
+
+  // Sort: non-virtual Wi-Fi first, then non-virtual Ethernet, then virtual
+  list.sort((a, b) => {
+    if (a.isVirtual !== b.isVirtual) return a.isVirtual ? 1 : -1;
+    if (a.isWifi !== b.isWifi) return a.isWifi ? -1 : 1;
+    return 0;
+  });
+
+  return list;
+}
+
+function getLocalIp() {
+  const ips = getNetworkIps();
+  if (ips.length > 0 && !ips[0].isVirtual) {
+    return ips[0].address;
+  }
+  if (ips.length > 0) {
+    return ips[0].address;
   }
   return 'localhost';
 }
@@ -109,12 +138,17 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/info') {
     const hostHeader = req.headers.host || `localhost:${PORT}`;
     const cleanDomain = hostHeader.replace(/^https?:\/\//i, '');
+    const localIp = getLocalIp();
+    const isLoopbackHost = cleanDomain.startsWith('localhost') || cleanDomain.startsWith('127.0.0.1');
+    const recommendedDomain = isLoopbackHost && localIp !== 'localhost' ? `${localIp}:${PORT}` : cleanDomain;
+
     let latestRoom = gameManager.getLatestRoom();
     if (!latestRoom || latestRoom.state === 'GAME_OVER') {
       latestRoom = gameManager.createRoom();
       console.log(`🔑 [Auto Room Init] Ready with Game PIN: [ ${latestRoom.pin} ]`);
     }
     const activePin = latestRoom ? latestRoom.pin : null;
+    const allIps = getNetworkIps();
     res.writeHead(200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -122,7 +156,9 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({
       appName: 'SE Quiz Game Arena',
       version: '1.0.0',
-      joinDomain: cleanDomain,
+      joinDomain: recommendedDomain,
+      lanIp: localIp,
+      allIps: allIps.map(i => ({ name: i.name, ip: i.address, isWifi: i.isWifi })),
       port: PORT,
       activeRooms: gameManager.rooms.size,
       activePin: activePin,
@@ -132,6 +168,25 @@ const server = http.createServer((req, res) => {
       playerCount: latestRoom ? latestRoom.players.size : 0,
       totalQuestions: latestRoom ? latestRoom.questions.length : 50
     }));
+    return;
+  }
+
+  // QR Code SVG Generator Endpoint
+  if (pathname === '/api/qr') {
+    const requestedUrl = parsedUrl.searchParams.get('url');
+    const pin = parsedUrl.searchParams.get('pin');
+    let target = requestedUrl;
+    if (!target) {
+      const bestIp = getLocalIp();
+      const base = `http://${bestIp}:${PORT}`;
+      target = pin ? `${base}/?pin=${encodeURIComponent(pin)}` : base;
+    }
+    const svg = generateQRCodeSVG(target);
+    res.writeHead(200, {
+      'Content-Type': 'image/svg+xml; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    });
+    res.end(svg);
     return;
   }
 
@@ -276,6 +331,7 @@ const server = http.createServer((req, res) => {
     const currentQ = room.currentQuestionIndex >= 0 ? room.questions[room.currentQuestionIndex] : null;
     const elapsedMs = room.questionStartTime ? Math.max(0, Date.now() - room.questionStartTime) : 0;
     const remainingMs = Math.max(0, (room.timeLimit * 1000) - elapsedMs);
+    const activePlayerCount = Array.from(room.players.values()).filter(p => p.isConnected).length;
 
     const playersList = isHost ? Array.from(room.players.values()).map(p => ({
       sessionToken: p.sessionToken,
@@ -284,6 +340,105 @@ const server = http.createServer((req, res) => {
       score: p.score,
       isConnected: p.isConnected
     })) : null;
+
+    // Build state-specific snapshots
+    let resultSnapshot = null;
+    let leaderboardSnapshot = null;
+    let gameOverSnapshot = null;
+
+    if (room.state === 'RESULT' && currentQ) {
+      const sorted = gameManager.getSortedLeaderboard(room);
+      const tokenToRank = new Map();
+      sorted.forEach((p, idx) => tokenToRank.set(p.sessionToken, idx + 1));
+      const distribution = [0, 0, 0, 0];
+      for (const ans of room.answers.values()) {
+        if (ans.optionIndex >= 0 && ans.optionIndex < 4) distribution[ans.optionIndex]++;
+      }
+      const top10Summary = sorted.slice(0, 10).map((p, idx) => {
+        const ans = room.answers.get(p.sessionToken);
+        return {
+          rank: idx + 1,
+          nickname: p.nickname,
+          avatar: p.avatar,
+          score: p.score,
+          streak: p.streak,
+          scoreGained: ans ? ans.scoreGained : 0,
+          isCorrect: ans ? ans.isCorrect : false,
+          timeTaken: ans ? ans.timeTaken : null
+        };
+      });
+
+      const playerAns = sessionToken ? room.answers.get(sessionToken) : null;
+      resultSnapshot = {
+        questionIndex: room.currentQuestionIndex,
+        totalQuestions: room.questions.length,
+        question: currentQ.question,
+        options: currentQ.options,
+        correctIndex: currentQ.correctIndex,
+        correctText: currentQ.options[currentQ.correctIndex],
+        explanation: currentQ.explanation,
+        unit: currentQ.unit || '',
+        difficulty: currentQ.difficulty || '',
+        distribution,
+        totalAnswered: room.answers.size,
+        totalPlayers: room.players.size,
+        topPlayers: top10Summary,
+        playerResult: player ? {
+          questionIndex: room.currentQuestionIndex,
+          isCorrect: playerAns ? playerAns.isCorrect : false,
+          chosenOption: playerAns ? playerAns.optionIndex : -1,
+          scoreGained: playerAns ? playerAns.scoreGained : 0,
+          streakBonus: playerAns ? playerAns.streakBonus : 0,
+          streak: player.streak,
+          currentScore: player.score,
+          rank: tokenToRank.get(sessionToken) || room.players.size,
+          correctIndex: currentQ.correctIndex,
+          correctText: currentQ.options[currentQ.correctIndex],
+          explanation: currentQ.explanation
+        } : null
+      };
+    } else if (room.state === 'LEADERBOARD') {
+      const sorted = gameManager.getSortedLeaderboard(room);
+      const top10 = sorted.slice(0, 10).map((tp, idx) => ({
+        rank: idx + 1,
+        nickname: tp.nickname,
+        avatar: tp.avatar,
+        score: tp.score,
+        streak: tp.streak
+      }));
+      leaderboardSnapshot = {
+        questionIndex: room.currentQuestionIndex,
+        totalQuestions: room.questions.length,
+        topPlayers: top10,
+        totalPlayers: room.players.size,
+        playerLeaderboard: player ? gameManager.getPlayerLeaderboardSnapshot(room, player) : null
+      };
+    } else if (room.state === 'GAME_OVER') {
+      const sorted = gameManager.getSortedLeaderboard(room);
+      gameOverSnapshot = {
+        first: sorted[0] ? { nickname: sorted[0].nickname, avatar: sorted[0].avatar, score: sorted[0].score, accuracy: Math.round((sorted[0].correctCount / room.questions.length) * 100) } : null,
+        second: sorted[1] ? { nickname: sorted[1].nickname, avatar: sorted[1].avatar, score: sorted[1].score, accuracy: Math.round((sorted[1].correctCount / room.questions.length) * 100) } : null,
+        third: sorted[2] ? { nickname: sorted[2].nickname, avatar: sorted[2].avatar, score: sorted[2].score, accuracy: Math.round((sorted[2].correctCount / room.questions.length) * 100) } : null,
+        top10: sorted.slice(0, 10).map((p, idx) => ({
+          rank: idx + 1,
+          nickname: p.nickname,
+          avatar: p.avatar,
+          score: p.score,
+          correctCount: p.correctCount,
+          accuracy: Math.round((p.correctCount / room.questions.length) * 100),
+          maxStreak: p.maxStreak
+        })),
+        allResults: sorted.map((p, idx) => ({
+          rank: idx + 1,
+          nickname: p.nickname,
+          score: p.score,
+          correctCount: p.correctCount,
+          totalQuestions: room.questions.length,
+          accuracy: Math.round((p.correctCount / room.questions.length) * 100),
+          maxStreak: p.maxStreak
+        }))
+      };
+    }
 
     res.writeHead(200, {
       'Content-Type': 'application/json',
@@ -296,6 +451,7 @@ const server = http.createServer((req, res) => {
       currentQuestionIndex: room.currentQuestionIndex,
       totalQuestions: room.questions.length,
       playerCount: room.players.size,
+      activePlayerCount,
       timeLimit: room.timeLimit,
       remainingMs,
       elapsedMs,
@@ -312,7 +468,10 @@ const server = http.createServer((req, res) => {
         score: player.score,
         streak: player.streak,
         answered: room.answers.has(sessionToken)
-      } : null
+      } : null,
+      resultSnapshot,
+      leaderboardSnapshot,
+      gameOverSnapshot
     }));
     return;
   }
@@ -326,7 +485,7 @@ const server = http.createServer((req, res) => {
     });
     req.on('end', () => {
       try {
-        const { pin, hostToken, action } = JSON.parse(body || '{}');
+        const { pin, hostToken, action, questionIndex } = JSON.parse(body || '{}');
         const room = gameManager.getRoom(pin);
         if (!room || room.hostToken !== hostToken) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -342,6 +501,12 @@ const server = http.createServer((req, res) => {
           gameManager.pauseQuestion(room);
         } else if (action === 'resume_timer') {
           gameManager.resumeQuestion(room);
+        } else if (action === 'skip_timer' || action === 'end_question_now') {
+          gameManager.forceEndQuestion(room);
+        } else if (action === 'prev_question') {
+          gameManager.prevQuestion(pin, hostToken);
+        } else if (action === 'jump_question') {
+          gameManager.jumpToQuestion(pin, hostToken, questionIndex);
         } else if (action === 'show_leaderboard') {
           gameManager.showLeaderboard(room);
         } else if (action === 'end_game') {
@@ -656,6 +821,12 @@ wss.on('connection', (client) => {
           break;
         }
 
+        // Application-level Heartbeat
+        case 'ping': {
+          client.send({ event: 'pong' });
+          break;
+        }
+
         default:
           break;
       }
@@ -669,23 +840,31 @@ wss.on('connection', (client) => {
   });
 });
 
-// Active keep-alive heartbeat with dead/stale socket pruning
+// Active keep-alive heartbeat with graceful tolerance for mobile tab switches
 setInterval(() => {
   for (const client of wss.clients) {
     if (client.isAlive === false) {
-      // Dead socket that failed to respond with Pong before next cycle
-      if (typeof client.terminate === 'function') {
-        client.terminate();
-      } else {
-        client.close();
+      client.missedHeartbeats = (client.missedHeartbeats || 0) + 1;
+      // Allow 2 missed heartbeats (50s) before terminating to protect students on mobile Wi-Fi
+      if (client.missedHeartbeats >= 2) {
+        if (typeof client.terminate === 'function') {
+          client.terminate();
+        } else {
+          client.close();
+        }
+        wss.clients.delete(client);
+        continue;
       }
-      wss.clients.delete(client);
-      continue;
+    } else {
+      client.missedHeartbeats = 0;
     }
+
     client.isAlive = false;
-    if (client.socket && !client.socket.destroyed && client.socket.writable) {
+    if (typeof client.ping === 'function') {
+      client.ping();
+    } else if (client.socket && !client.socket.destroyed && client.socket.writable) {
       try {
-        client.socket.write(Buffer.from([0x89, 0x00]), () => {}); // WS Ping frame
+        client.socket.write(Buffer.from([0x89, 0x00]), () => {});
       } catch (e) {
         if (typeof client.terminate === 'function') client.terminate();
         else client.close();
@@ -693,6 +872,18 @@ setInterval(() => {
     }
   }
 }, 25000);
+
+// Prune abandoned or expired rooms every 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  const FOUR_HOURS = 4 * 60 * 60 * 1000;
+  for (const [pin, room] of gameManager.rooms.entries()) {
+    if (now - (room.createdAt || 0) > FOUR_HOURS && (room.state === 'GAME_OVER' || room.players.size === 0)) {
+      console.log(`🧹 [Cleanup] Pruning inactive room [ ${pin} ]`);
+      gameManager.rooms.delete(pin);
+    }
+  }
+}, 30 * 60 * 1000);
 
 // Create initial room so an active Game PIN is ready immediately
 const initialRoom = gameManager.createRoom();

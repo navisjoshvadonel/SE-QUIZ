@@ -87,6 +87,8 @@ function startPlayerPolling() {
   playerPollingTimer = setInterval(pollPlayerRoomState, 1200);
 }
 
+let playerHeartbeatInterval = null;
+
 async function pollPlayerRoomState() {
   if (!currentPin || !mySessionToken) return;
   if (ws && ws.readyState === WebSocket.OPEN) return;
@@ -100,19 +102,48 @@ async function pollPlayerRoomState() {
     if (data.state === 'LOBBY') {
       const lobbyCnt = document.getElementById('lobby-player-count');
       if (lobbyCnt) lobbyCnt.textContent = data.playerCount || 1;
+    } else if (data.state === 'COUNTDOWN') {
+      const screenCd = document.getElementById('screen-countdown');
+      if (!screenCd || !screenCd.classList.contains('active')) {
+        goToScreen('screen-countdown');
+      }
     } else if (data.state === 'QUESTION' && data.question) {
       if (currentQuestionIndex !== data.currentQuestionIndex) {
+        currentQuestionIndex = data.currentQuestionIndex;
         canSubmitAnswer = true;
-        showStudentQuestion({
+        showActiveQuestion({
           questionIndex: data.currentQuestionIndex,
           totalQuestions: data.totalQuestions,
           question: data.question.question,
           options: data.question.options,
-          timeLimit: data.timeLimit
-        });
+          timeLimit: data.timeLimit,
+          unit: data.question.unit,
+          difficulty: data.question.difficulty
+        }, data.elapsedMs || 0);
       }
-      if (data.remainingMs !== undefined) {
-        updateCircularTimer(data.remainingMs);
+    } else if (data.state === 'RESULT' && data.resultSnapshot) {
+      const screenRes = document.getElementById('screen-result');
+      if (!screenRes || !screenRes.classList.contains('active')) {
+        canSubmitAnswer = false;
+        if (data.resultSnapshot.playerResult) {
+          showQuestionResult(data.resultSnapshot.playerResult);
+        } else {
+          goToScreen('screen-result');
+        }
+      }
+    } else if (data.state === 'LEADERBOARD' && data.leaderboardSnapshot) {
+      const screenLb = document.getElementById('screen-leaderboard');
+      if (!screenLb || !screenLb.classList.contains('active')) {
+        if (data.leaderboardSnapshot.playerLeaderboard) {
+          showLeaderboardUpdate(data.leaderboardSnapshot.playerLeaderboard);
+        } else {
+          goToScreen('screen-leaderboard');
+        }
+      }
+    } else if (data.state === 'GAME_OVER' && data.gameOverSnapshot) {
+      const screenGo = document.getElementById('screen-gameover');
+      if (!screenGo || !screenGo.classList.contains('active')) {
+        showGameOver(data.gameOverSnapshot);
       }
     }
   } catch (e) {}
@@ -143,6 +174,14 @@ function connectWebSocket() {
       }
     }
 
+    // Start 15s application heartbeat to prevent lab firewall idle dropouts
+    if (playerHeartbeatInterval) clearInterval(playerHeartbeatInterval);
+    playerHeartbeatInterval = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        try { ws.send(JSON.stringify({ event: 'ping' })); } catch (e) {}
+      }
+    }, 15000);
+
     // Check for previous session in sessionStorage (F5 recovery)
     const saved = getSavedSession();
     if (saved && saved.pin && saved.sessionToken) {
@@ -157,6 +196,7 @@ function connectWebSocket() {
   ws.onmessage = (event) => {
     try {
       const { event: evtName, data } = JSON.parse(event.data);
+      if (evtName === 'pong') return;
       handleServerEvent(evtName, data);
     } catch (err) {
       console.error('Failed to parse WS message:', err);
@@ -165,6 +205,7 @@ function connectWebSocket() {
 
   ws.onclose = () => {
     console.warn('WebSocket closed. Reconnecting in 2s (polling fallback active)...');
+    if (playerHeartbeatInterval) clearInterval(playerHeartbeatInterval);
     startPlayerPolling();
     setTimeout(connectWebSocket, 2000);
   };
@@ -310,36 +351,6 @@ function initUrlParams() {
     goToScreen('screen-nickname');
     const nickInput = document.getElementById('input-nickname-val');
     if (nickInput) nickInput.focus();
-  } else {
-    // Automatically fetch active room info from server
-    fetch('/api/info')
-      .then(res => res.json())
-      .then(info => {
-        if (info.activePin) {
-          const badge = document.getElementById('active-pin-badge-wrap');
-          const val = document.getElementById('detected-pin-val');
-          const input = document.getElementById('input-pin-val');
-          if (badge && val) {
-            val.textContent = info.activePin;
-            badge.style.display = 'block';
-          }
-          if (input && !input.value) {
-            input.value = info.activePin;
-          }
-        }
-      })
-      .catch(() => {});
-  }
-}
-
-function useDetectedPin() {
-  const val = document.getElementById('detected-pin-val');
-  if (val && val.textContent && val.textContent !== '------') {
-    const input = document.getElementById('input-pin-val');
-    if (input) {
-      input.value = val.textContent.trim();
-      submitPin();
-    }
   }
 }
 

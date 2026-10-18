@@ -125,6 +125,9 @@ class WebSocketConnection extends EventEmitter {
         }
       }
 
+      // Update liveness on any frame received from client
+      this.isAlive = true;
+
       // Handle Opcode
       if (opcode === 0x01) {
         // Text frame
@@ -159,10 +162,16 @@ class WebSocketConnection extends EventEmitter {
         }
       } else if (opcode === 0x0A) {
         // Pong received from client (browser response to server heartbeat ping)
-        this.isAlive = true;
         this.emit('pong');
       }
     }
+  }
+
+  ping() {
+    if (this.socket.destroyed || !this.socket.writable) return;
+    try {
+      this.socket.write(Buffer.from([0x89, 0x00]), () => {});
+    } catch (e) {}
   }
 }
 
