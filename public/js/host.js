@@ -598,38 +598,12 @@ async function fetchNetworkInfo() {
       const previewPin = document.getElementById('host-preview-pin');
       if (previewPin && (!previewPin.textContent || previewPin.textContent === '------')) previewPin.textContent = info.activePin;
     }
-
-    // Populate Lab IP Dropdown if multiple network adapters exist
-    if (info.allIps && info.allIps.length > 0) {
-      const selectWrap = document.getElementById('lobby-ip-selector-wrap');
-      const select = document.getElementById('lobby-ip-select');
-      if (select && selectWrap) {
-        select.innerHTML = '';
-        info.allIps.forEach(net => {
-          const opt = document.createElement('option');
-          opt.value = `${net.ip}:${info.port || 3000}`;
-          opt.textContent = `${net.name}: ${net.ip} ${net.isWifi ? '(Wi-Fi ⭐)' : ''}`;
-          if (cleanDomain.includes(net.ip)) opt.selected = true;
-          select.appendChild(opt);
-        });
-        selectWrap.style.display = 'block';
-      }
-    }
-
-    }
   } catch (e) {
     const urlEl = document.getElementById('host-pc-join-url');
     if (urlEl) urlEl.textContent = window.location.host.replace(/^https?:\/\//i, '');
     const heroUrl = document.getElementById('lobby-hero-url');
     if (heroUrl) heroUrl.textContent = window.location.host.replace(/^https?:\/\//i, '');
   }
-}
-
-function changeHostIp(selectedDomain) {
-  const heroUrl = document.getElementById('lobby-hero-url');
-  if (heroUrl) heroUrl.textContent = selectedDomain.replace(/^https?:\/\//i, '');
-  const urlEl = document.getElementById('host-pc-join-url');
-  if (urlEl) urlEl.textContent = selectedDomain.replace(/^https?:\/\//i, '');
 }
 
 // Update lobby student list & count
