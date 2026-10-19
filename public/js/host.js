@@ -501,7 +501,6 @@ function handleHostEvent(event, data) {
       break;
 
     case 'countdown_start':
-      window.sounds.stopLobbyMusic();
       window.sounds.playCountdownTick();
       showCountdown(data);
       break;

@@ -424,6 +424,31 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+/* Sound Toggle Button */
+.sound-toggle-btn {
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-medium);
+  border-radius: 9999px;
+  padding: 0.45rem 1rem;
+  font-family: var(--font-main);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.sound-toggle-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-focus);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
 /* Main Workspace Card - Full Height Flex Flow */
 .pc-main-workspace {
   flex: 1;

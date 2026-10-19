@@ -1,14 +1,44 @@
 // public/js/sounds.js
-// Procedural Web Audio API sound synthesizer with Attack on Titan "Eye-Water" OST & Haptic Feedback
+// High-Fidelity Audio Engine: Acoustic OST (Attack on Titan: Eye Water) + Procedural Web Audio SFX
 
 class SoundEngine {
   constructor() {
     this.ctx = null;
-    this.isMuted = false;
-    this.bgmTimer = null;
-    this.bgmStep = 0;
+    this.isMuted = localStorage.getItem('se_quiz_muted') === 'true';
     this.isBgmPlaying = false;
-    this.bgmVolume = 0.032; // Very gentle low ambient volume as requested
+    this.bgmAudio = null;
+    this.targetBgmVolume = 0.15; // Mild, comfortable background volume
+    this.targetPlaybackRate = 0.88; // Slow, contemplative and emotional guitar tempo
+    this.fadeInTimer = null;
+
+    this.initAudioElement();
+  }
+
+  initAudioElement() {
+    try {
+      if (!this.bgmAudio) {
+        this.bgmAudio = new Audio('/audio/game-track.mp3');
+        this.bgmAudio.loop = true;
+        this.bgmAudio.volume = this.isMuted ? 0 : this.targetBgmVolume;
+        this.bgmAudio.playbackRate = this.targetPlaybackRate;
+        this.bgmAudio.preload = 'auto';
+
+        // Seamless loop guarantee across all browser engines
+        this.bgmAudio.addEventListener('ended', () => {
+          if (!this.isMuted && this.isBgmPlaying) {
+            this.bgmAudio.currentTime = 0;
+            this.bgmAudio.play().catch(() => {});
+          }
+        });
+
+        // Ensure playback rate remains gently slowed
+        this.bgmAudio.addEventListener('play', () => {
+          this.bgmAudio.playbackRate = this.targetPlaybackRate;
+        });
+      }
+    } catch (e) {
+      console.warn('Audio element init error:', e);
+    }
   }
 
   init() {
@@ -25,18 +55,111 @@ class SoundEngine {
     } catch (e) {
       this.ctx = null;
     }
+
+    if (!this.bgmAudio) {
+      this.initAudioElement();
+    }
+  }
+
+  // Smooth fade-in to target volume
+  startBgm() {
+    if (this.isMuted) return;
+    this.init();
+    if (!this.bgmAudio) return;
+
+    this.isBgmPlaying = true;
+    this.bgmAudio.playbackRate = this.targetPlaybackRate;
+
+    // Start with gentle fade-in
+    this.bgmAudio.volume = 0.01;
+    const playPromise = this.bgmAudio.play();
+
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        let currentVol = 0.01;
+        if (this.fadeInTimer) clearInterval(this.fadeInTimer);
+        this.fadeInTimer = setInterval(() => {
+          if (this.isMuted || !this.isBgmPlaying) {
+            clearInterval(this.fadeInTimer);
+            return;
+          }
+          currentVol += 0.015;
+          if (currentVol >= this.targetBgmVolume) {
+            this.bgmAudio.volume = this.targetBgmVolume;
+            clearInterval(this.fadeInTimer);
+          } else {
+            this.bgmAudio.volume = Math.min(currentVol, this.targetBgmVolume);
+          }
+        }, 60);
+      }).catch(err => {
+        // Autoplay policy prevented immediate playback; waiting for first user gesture
+        console.log('Autoplay deferred until user interaction.');
+      });
+    }
+  }
+
+  stopBgm() {
+    this.isBgmPlaying = false;
+    if (this.fadeInTimer) {
+      clearInterval(this.fadeInTimer);
+      this.fadeInTimer = null;
+    }
+    if (this.bgmAudio) {
+      try {
+        this.bgmAudio.pause();
+      } catch (e) {}
+    }
+  }
+
+  // Keep compatibility with existing calls
+  startLobbyMusic() {
+    this.startBgm();
+  }
+
+  stopLobbyMusic() {
+    // The game audio track plays continuously throughout the session.
+    // Explicit muting or calling stopBgm() stops playback.
   }
 
   toggleMute() {
     this.isMuted = !this.isMuted;
+    localStorage.setItem('se_quiz_muted', this.isMuted ? 'true' : 'false');
+
     if (this.isMuted) {
-      this.stopLobbyMusic();
+      this.stopBgm();
     } else {
-      this.startLobbyMusic();
+      this.startBgm();
     }
+    this.updateMuteUI();
     return this.isMuted;
   }
 
+  updateMuteUI() {
+    document.querySelectorAll('#btn-sound-toggle, .btn-sound-toggle').forEach(btn => {
+      const icon = btn.querySelector('#sound-toggle-icon, .sound-toggle-icon');
+      const text = btn.querySelector('#sound-toggle-text, .sound-toggle-text');
+      if (icon) icon.textContent = this.isMuted ? '🔇' : '🔊';
+      else btn.textContent = this.isMuted ? '🔇' : '🔊';
+      if (text) text.textContent = this.isMuted ? 'Muted' : 'Sound';
+      btn.setAttribute('title', this.isMuted ? 'Unmute Game Audio' : 'Mute Game Audio');
+    });
+  }
+
+  setBgmVolume(volume) {
+    this.targetBgmVolume = Math.max(0, Math.min(1, volume));
+    if (this.bgmAudio && !this.isMuted) {
+      this.bgmAudio.volume = this.targetBgmVolume;
+    }
+  }
+
+  setPlaybackRate(rate) {
+    this.targetPlaybackRate = Math.max(0.5, Math.min(2, rate));
+    if (this.bgmAudio) {
+      this.bgmAudio.playbackRate = this.targetPlaybackRate;
+    }
+  }
+
+  // Web Audio Procedural Sound Effects
   playTone(freq, type = 'sine', duration = 0.2, gainValue = 0.15) {
     if (this.isMuted) return;
     this.init();
@@ -59,46 +182,7 @@ class SoundEngine {
     } catch (e) {}
   }
 
-  // Soft piano note synthesizer for atmospheric OST
-  playPianoNote(freq, duration = 1.1, gainValue = 0.032) {
-    if (this.isMuted || !freq) return;
-    this.init();
-    if (!this.ctx) return;
-    try {
-      const now = this.ctx.currentTime;
-      const osc1 = this.ctx.createOscillator();
-      const osc2 = this.ctx.createOscillator();
-      const gainNode = this.ctx.createGain();
-      const filter = this.ctx.createBiquadFilter();
-
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(freq, now);
-
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(freq * 2, now);
-
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1200, now);
-      filter.frequency.exponentialRampToValueAtTime(350, now + duration);
-
-      gainNode.gain.setValueAtTime(0.0001, now);
-      gainNode.gain.linearRampToValueAtTime(gainValue, now + 0.025);
-      gainNode.gain.exponentialRampToValueAtTime(gainValue * 0.35, now + 0.28);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-      osc1.connect(filter);
-      osc2.connect(filter);
-      filter.connect(gainNode);
-      gainNode.connect(this.ctx.destination);
-
-      osc1.start(now);
-      osc2.start(now);
-      osc1.stop(now + duration);
-      osc2.stop(now + duration);
-    } catch (e) {}
-  }
-
-  // Addicting Juicy Click Pop
+  // Juicy Click Pop for buttons
   playClickPop() {
     if (this.isMuted) return;
     this.init();
@@ -177,88 +261,26 @@ class SoundEngine {
       setTimeout(() => this.playTone(item.f, 'triangle', item.d, 0.25), item.t);
     });
   }
-
-  // Attack on Titan: "Eye-Water" (Hiroyuki Sawano) Ambient Theme Loop (Low Volume)
-  startLobbyMusic() {
-    if (this.isMuted || this.isBgmPlaying) return;
-    this.init();
-    this.isBgmPlaying = true;
-    this.bgmStep = 0;
-
-    // Frequencies (Hz)
-    const B3 = 246.94, C4 = 261.63, D4 = 293.66, E4 = 329.63, Fs4 = 369.99, G4 = 392.00, A4 = 440.00;
-    const B4 = 493.88, C5 = 523.25, D5 = 587.33, E5 = 659.25, Fs5 = 739.99, G5 = 783.99;
-    const E2 = 82.41, C3 = 130.81, G2 = 98.00, D3 = 146.83, E3 = 164.81, G3 = 196.00, A3 = 220.00;
-
-    // Attack on Titan "Eye-Water" Iconic progression (Melody + Soft Chords)
-    const eyeWaterSequence = [
-      // Phrase 1 (Em chord - iconic intro motif)
-      { m: B4, b: E3, d: 1.0 },
-      { m: E5, b: null, d: 0.8 },
-      { m: D5, b: B3, d: 0.8 },
-      { m: B4, b: null, d: 0.8 },
-      { m: A4, b: G3, d: 0.9 },
-      { m: G4, b: null, d: 0.6 },
-      { m: A4, b: B3, d: 0.7 },
-      { m: B4, b: null, d: 1.0 },
-
-      // Phrase 2 (C Major chord)
-      { m: G4, b: C3, d: 0.9 },
-      { m: E4, b: G3, d: 0.8 },
-      { m: G4, b: null, d: 0.7 },
-      { m: A4, b: E4, d: 0.7 },
-      { m: B4, b: null, d: 1.1 },
-
-      // Phrase 3 (G Major -> D/F#)
-      { m: D5, b: G2, d: 0.9 },
-      { m: E5, b: D4, d: 0.8 },
-      { m: G5, b: null, d: 1.0 },
-      { m: Fs5, b: D3, d: 0.9 },
-      { m: E5, b: A3, d: 0.8 },
-      { m: D5, b: null, d: 0.8 },
-      { m: B4, b: Fs4, d: 1.2 },
-
-      // Phrase 4 (Resolution back to Em)
-      { m: A4, b: E3, d: 0.8 },
-      { m: B4, b: B3, d: 0.9 },
-      { m: G4, b: null, d: 0.8 },
-      { m: E4, b: G3, d: 1.4 },
-      { m: null, b: null, d: 0.6 } // Gentle breath before loop
-    ];
-
-    const stepDurationMs = 520; // Flowing 80bpm tempo
-
-    this.bgmTimer = setInterval(() => {
-      if (this.isMuted) return;
-      const note = eyeWaterSequence[this.bgmStep];
-      if (note) {
-        if (note.m) this.playPianoNote(note.m, note.d, this.bgmVolume);
-        if (note.b) this.playPianoNote(note.b, note.d * 1.3, this.bgmVolume * 0.75);
-      }
-      this.bgmStep = (this.bgmStep + 1) % eyeWaterSequence.length;
-    }, stepDurationMs);
-  }
-
-  stopLobbyMusic() {
-    this.isBgmPlaying = false;
-    if (this.bgmTimer) {
-      clearInterval(this.bgmTimer);
-      this.bgmTimer = null;
-    }
-  }
 }
 
 window.sounds = new SoundEngine();
 
 // Auto-start ambient music and prime Web Audio context on first user gesture anywhere
-['pointerdown', 'keydown'].forEach(evt => {
+['pointerdown', 'keydown', 'touchstart'].forEach(evt => {
   document.addEventListener(evt, () => {
     if (window.sounds) {
       window.sounds.init();
       if (!window.sounds.isBgmPlaying && !window.sounds.isMuted) {
-        window.sounds.startLobbyMusic();
+        window.sounds.startBgm();
       }
     }
   }, { once: true });
+});
+
+// Sync UI mute state on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.sounds) {
+    window.sounds.updateMuteUI();
+  }
 });
 

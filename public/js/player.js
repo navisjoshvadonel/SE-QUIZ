@@ -70,6 +70,24 @@ function applyTheme(theme) {
   }
 }
 
+function toggleSound() {
+  if (window.sounds) {
+    const isMuted = window.sounds.toggleMute();
+    const icon = document.getElementById('sound-toggle-icon');
+    const text = document.getElementById('sound-toggle-text');
+    if (icon) icon.textContent = isMuted ? '🔇' : '🔊';
+    if (text) text.textContent = isMuted ? 'Muted' : 'Sound';
+  }
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(err => console.log(err));
+  } else {
+    document.exitFullscreen().catch(err => console.log(err));
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   renderAvatars();
@@ -522,7 +540,6 @@ function handleServerEvent(event, data) {
 
     case 'countdown_start':
       canSubmitAnswer = false;
-      window.sounds.stopLobbyMusic();
       window.sounds.playCountdownTick();
       document.getElementById('countdown-val').textContent = data.countdown;
 

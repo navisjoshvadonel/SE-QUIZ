@@ -23,7 +23,10 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
-  '.ico': 'image/x-icon'
+  '.ico': 'image/x-icon',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg'
 };
 
 function getNetworkIps() {
@@ -572,12 +575,31 @@ const server = http.createServer((req, res) => {
     const clientEtag = req.headers['if-none-match'];
 
     // HTTP 304 Not Modified conditional validation
-    if (clientEtag && clientEtag === cached.etag) {
+    if (clientEtag && clientEtag === cached.etag && !req.headers.range) {
       res.writeHead(304, {
         'ETag': cached.etag,
         'Cache-Control': cacheControl
       });
       res.end();
+      return;
+    }
+
+    // Support HTTP Range requests (crucial for smooth audio streaming and looping)
+    const range = req.headers.range;
+    if (range && cached.buffer) {
+      const total = cached.buffer.length;
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
+      const chunksize = (end - start) + 1;
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${total}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': cached.contentType,
+        'Cache-Control': 'public, max-age=86400'
+      });
+      res.end(cached.buffer.slice(start, end + 1));
       return;
     }
 
@@ -601,7 +623,8 @@ const server = http.createServer((req, res) => {
         'Content-Type': cached.contentType,
         'Content-Length': cached.buffer.length,
         'ETag': cached.etag,
-        'Cache-Control': cacheControl
+        'Cache-Control': cacheControl,
+        'Accept-Ranges': 'bytes'
       });
       if (req.method === 'HEAD') {
         res.end();
@@ -617,7 +640,26 @@ const server = http.createServer((req, res) => {
   if (safePath.startsWith(PUBLIC_DIR) && fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
     const ext = path.extname(safePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': contentType });
+    const stat = fs.statSync(safePath);
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': (end - start) + 1,
+        'Content-Type': contentType
+      });
+      fs.createReadStream(safePath, { start, end }).pipe(res);
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Content-Length': stat.size,
+      'Accept-Ranges': 'bytes'
+    });
     fs.createReadStream(safePath).pipe(res);
     return;
   }
