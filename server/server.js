@@ -570,8 +570,9 @@ const server = http.createServer((req, res) => {
 
   const cached = staticCache.get(targetPath);
   if (cached) {
-    const isHtml = cached.ext === '.html';
-    const cacheControl = isHtml ? 'no-cache' : 'public, max-age=3600';
+    const isAudio = ['.mp3', '.wav', '.ogg'].includes(cached.ext);
+    // Audio can be cached, but JS, CSS, and HTML must revalidate instantly
+    const cacheControl = isAudio ? 'public, max-age=86400' : 'no-cache, must-revalidate';
     const clientEtag = req.headers['if-none-match'];
 
     // HTTP 304 Not Modified conditional validation
